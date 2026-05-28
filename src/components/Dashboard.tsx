@@ -84,7 +84,7 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
   // Monthly trend
   const monthly = useMemo(() => {
     const map = new Map<string, { mes: string; total: number; qtd: number }>();
-    filtered.forEach((r) => {
+    rows.forEach((r) => {
       if (!r.data) return;
       const k = monthKey(r.data);
       const e = map.get(k) ?? { mes: k, total: 0, qtd: 0 };
@@ -95,7 +95,7 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
     return [...map.values()]
       .sort((a, b) => a.mes.localeCompare(b.mes))
       .map((e) => ({ ...e, label: monthLabel(e.mes) }));
-  }, [filtered]);
+  }, [rows]);
 
   // Month-over-month delta (last vs previous)
   const mom = useMemo(() => {
@@ -147,14 +147,14 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
     return months.map((m) => {
       const row: Record<string, number | string> = { label: monthLabel(m) };
       topUsers.forEach((u) => (row[u] = 0));
-      filtered.forEach((r) => {
+      rows.forEach((r) => {
         if (!r.data || monthKey(r.data) !== m) return;
         if (topUsers.includes(r.usuario))
           row[r.usuario] = (row[r.usuario] as number) + r.total;
       });
       return row;
     });
-  }, [filtered, monthly, byUser]);
+  }, [rows, monthly, byUser]);
   const topUsers = byUser.slice(0, 5).map((u) => u.usuario);
 
   return (
