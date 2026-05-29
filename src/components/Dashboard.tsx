@@ -46,13 +46,6 @@ const CHART_COLORS = [
 type Props = { rows: OrcamentoRow[]; fileName: string; importedAt: string };
 
 export function Dashboard({ rows, fileName, importedAt }: Props) {
-  // Build month list
-  const allMonths = useMemo(() => {
-    const set = new Set<string>();
-    rows.forEach((r) => r.data && set.add(monthKey(r.data)));
-    return [...set].sort();
-  }, [rows]);
-
   // Date range bounds (for default values and input limits)
   const dateBounds = useMemo(() => {
     let min: Date | null = null;
