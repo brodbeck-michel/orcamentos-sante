@@ -63,6 +63,7 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
   const [dateFrom, setDateFrom] = useState<string>("");
   const [dateTo, setDateTo] = useState<string>("");
   const [convenioFilter, setConvenioFilter] = useState<string>("all");
+  const [scope, setScope] = useState<"all" | "converted">("all");
 
   const conveniosList = useMemo(() => {
     const set = new Set<string>();
@@ -70,7 +71,7 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
     return [...set].sort();
   }, [rows]);
 
-  const filtered = useMemo(() => {
+  const baseFiltered = useMemo(() => {
     const from = dateFrom ? new Date(dateFrom + "T00:00:00") : null;
     const to = dateTo ? new Date(dateTo + "T23:59:59") : null;
     return rows.filter((r) => {
@@ -84,23 +85,33 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
     });
   }, [rows, dateFrom, dateTo, convenioFilter]);
 
-  // KPIs
+  const filtered = useMemo(
+    () => (scope === "converted" ? baseFiltered.filter((r) => r.convertido) : baseFiltered),
+    [baseFiltered, scope],
+  );
+
+  // KPIs (base totals ignore scope so both numbers are always visible)
   const kpis = useMemo(() => {
-    const total = filtered.reduce((s, r) => s + r.total, 0);
+    const total = baseFiltered.reduce((s, r) => s + r.total, 0);
+    const convertedValue = baseFiltered.reduce((s, r) => (r.convertido ? s + r.total : s), 0);
+    const convertedCount = baseFiltered.reduce((s, r) => (r.convertido ? s + 1 : s), 0);
+    const taxa = total ? (convertedValue / total) * 100 : 0;
     const count = filtered.length;
-    const avg = count ? total / count : 0;
+    const scopeTotal = filtered.reduce((s, r) => s + r.total, 0);
+    const avg = count ? scopeTotal / count : 0;
     const usuarios = new Set(filtered.map((r) => r.usuario)).size;
-    return { total, count, avg, usuarios };
-  }, [filtered]);
+    return { total, convertedValue, convertedCount, taxa, count, avg, usuarios, scopeTotal };
+  }, [baseFiltered, filtered]);
 
   // Monthly trend
   const monthly = useMemo(() => {
-    const map = new Map<string, { mes: string; total: number; qtd: number }>();
+    const map = new Map<string, { mes: string; total: number; convertido: number; qtd: number }>();
     rows.forEach((r) => {
       if (!r.data) return;
       const k = monthKey(r.data);
-      const e = map.get(k) ?? { mes: k, total: 0, qtd: 0 };
+      const e = map.get(k) ?? { mes: k, total: 0, convertido: 0, qtd: 0 };
       e.total += r.total;
+      if (r.convertido) e.convertido += r.total;
       e.qtd += 1;
       map.set(k, e);
     });
@@ -161,12 +172,13 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
       topUsers.forEach((u) => (row[u] = 0));
       rows.forEach((r) => {
         if (!r.data || monthKey(r.data) !== m) return;
+        if (scope === "converted" && !r.convertido) return;
         if (topUsers.includes(r.usuario))
           row[r.usuario] = (row[r.usuario] as number) + r.total;
       });
       return row;
     });
-  }, [rows, monthly, byUser]);
+  }, [rows, monthly, byUser, scope]);
   const topUsers = byUser.slice(0, 5).map((u) => u.usuario);
 
   return (
