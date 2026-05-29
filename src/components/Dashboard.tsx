@@ -175,26 +175,26 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
       <div className="flex flex-wrap items-end justify-between gap-4 rounded-xl border border-border bg-card p-4" style={{ boxShadow: "var(--shadow-card)" }}>
         <div className="flex flex-wrap items-end gap-3">
           <div>
-            <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">De</label>
-            <input
-              type="date"
-              value={dateFrom}
-              min={dateBounds.minISO || undefined}
-              max={dateBounds.maxISO || undefined}
-              onChange={(e) => setDateFrom(e.target.value)}
-              className="mt-1 block rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Até</label>
-            <input
-              type="date"
-              value={dateTo}
-              min={dateBounds.minISO || undefined}
-              max={dateBounds.maxISO || undefined}
-              onChange={(e) => setDateTo(e.target.value)}
-              className="mt-1 block rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            />
+            <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Período</label>
+            <div className="mt-1 flex items-center gap-2">
+              <input
+                type="date"
+                value={dateFrom}
+                min={dateBounds.minISO || undefined}
+                max={dateBounds.maxISO || undefined}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="block rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+              <span className="text-xs text-muted-foreground">até</span>
+              <input
+                type="date"
+                value={dateTo}
+                min={dateBounds.minISO || undefined}
+                max={dateBounds.maxISO || undefined}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="block rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
           </div>
           {(dateFrom || dateTo) && (
             <button
