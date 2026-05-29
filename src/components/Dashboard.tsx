@@ -46,14 +46,22 @@ const CHART_COLORS = [
 type Props = { rows: OrcamentoRow[]; fileName: string; importedAt: string };
 
 export function Dashboard({ rows, fileName, importedAt }: Props) {
-  // Build month list
-  const allMonths = useMemo(() => {
-    const set = new Set<string>();
-    rows.forEach((r) => r.data && set.add(monthKey(r.data)));
-    return [...set].sort();
+  // Date range bounds (for default values and input limits)
+  const dateBounds = useMemo(() => {
+    let min: Date | null = null;
+    let max: Date | null = null;
+    rows.forEach((r) => {
+      if (!r.data) return;
+      if (!min || r.data < min) min = r.data;
+      if (!max || r.data > max) max = r.data;
+    });
+    const toISO = (d: Date | null) =>
+      d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}` : "";
+    return { minISO: toISO(min), maxISO: toISO(max) };
   }, [rows]);
 
-  const [monthFilter, setMonthFilter] = useState<string>("all");
+  const [dateFrom, setDateFrom] = useState<string>("");
+  const [dateTo, setDateTo] = useState<string>("");
   const [convenioFilter, setConvenioFilter] = useState<string>("all");
 
   const conveniosList = useMemo(() => {
@@ -63,14 +71,18 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
   }, [rows]);
 
   const filtered = useMemo(() => {
+    const from = dateFrom ? new Date(dateFrom + "T00:00:00") : null;
+    const to = dateTo ? new Date(dateTo + "T23:59:59") : null;
     return rows.filter((r) => {
-      if (monthFilter !== "all") {
-        if (!r.data || monthKey(r.data) !== monthFilter) return false;
+      if (from || to) {
+        if (!r.data) return false;
+        if (from && r.data < from) return false;
+        if (to && r.data > to) return false;
       }
       if (convenioFilter !== "all" && r.convenioPrincipal !== convenioFilter) return false;
       return true;
     });
-  }, [rows, monthFilter, convenioFilter]);
+  }, [rows, dateFrom, dateTo, convenioFilter]);
 
   // KPIs
   const kpis = useMemo(() => {
@@ -161,20 +173,38 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
     <div className="space-y-8">
       {/* Filters */}
       <div className="flex flex-wrap items-end justify-between gap-4 rounded-xl border border-border bg-card p-4" style={{ boxShadow: "var(--shadow-card)" }}>
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap items-end gap-3">
           <div>
-            <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Mês</label>
-            <select
-              value={monthFilter}
-              onChange={(e) => setMonthFilter(e.target.value)}
+            <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">De</label>
+            <input
+              type="date"
+              value={dateFrom}
+              min={dateBounds.minISO || undefined}
+              max={dateBounds.maxISO || undefined}
+              onChange={(e) => setDateFrom(e.target.value)}
               className="mt-1 block rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            >
-              <option value="all">Todos os meses</option>
-              {allMonths.map((m) => (
-                <option key={m} value={m}>{monthLabel(m)}</option>
-              ))}
-            </select>
+            />
           </div>
+          <div>
+            <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Até</label>
+            <input
+              type="date"
+              value={dateTo}
+              min={dateBounds.minISO || undefined}
+              max={dateBounds.maxISO || undefined}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="mt-1 block rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
+          {(dateFrom || dateTo) && (
+            <button
+              type="button"
+              onClick={() => { setDateFrom(""); setDateTo(""); }}
+              className="rounded-md border border-input bg-background px-3 py-2 text-sm text-muted-foreground transition hover:bg-accent hover:text-foreground"
+            >
+              Limpar período
+            </button>
+          )}
           <div>
             <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Convênio</label>
             <select
