@@ -442,12 +442,14 @@ function KpiCard({
   value,
   accent,
   delta,
+  hint,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
   accent?: boolean;
   delta?: number | null;
+  hint?: string;
 }) {
   return (
     <div
@@ -473,6 +475,9 @@ function KpiCard({
         {label}
       </div>
       <div className="mt-1 text-2xl font-semibold tracking-tight">{value}</div>
+      {hint && (
+        <div className={`mt-1 text-xs ${accent ? "opacity-80" : "text-muted-foreground"}`}>{hint}</div>
+      )}
     </div>
   );
 }
