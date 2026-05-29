@@ -14,6 +14,8 @@ export type OrcamentoRow = {
   mediaConvenio: number;
   total: number;
   convenioPrincipal: string;
+  requisicao: string | null;
+  convertido: boolean;
 };
 
 const toNum = (v: unknown): number => {
@@ -61,6 +63,13 @@ export async function parseOrcamentoFile(file: File): Promise<OrcamentoRow[]> {
       ].filter((o) => o.c);
       opts.sort((a, b) => b.v - a.v);
       const principal = opts[0]?.c ?? "NÃO INFORMADO";
+      const requisicao =
+        toStr(r["REQUISICAO"]) ??
+        toStr(r["REQUISIÇÃO"]) ??
+        toStr(r["NR_REQUISICAO"]) ??
+        toStr(r["NUM_REQUISICAO"]) ??
+        toStr(r["REQUISICOES"]) ??
+        null;
       return {
         orcamento: String(r["ORCAMENTO"] ?? ""),
         data: excelDate(r["DATA_ORÇAMENTO"]),
@@ -75,6 +84,8 @@ export async function parseOrcamentoFile(file: File): Promise<OrcamentoRow[]> {
         mediaConvenio: toNum(r["MEDIA_CONVENIO"]),
         total,
         convenioPrincipal: principal,
+        requisicao,
+        convertido: !!requisicao,
       } as OrcamentoRow;
     })
     .filter((r) => r.orcamento);
