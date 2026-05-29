@@ -230,6 +230,26 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
               ))}
             </select>
           </div>
+          <div>
+            <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Análise</label>
+            <div className="mt-1 inline-flex overflow-hidden rounded-md border border-input bg-background text-sm">
+              <button
+                type="button"
+                onClick={() => setScope("all")}
+                className={`px-3 py-2 transition ${scope === "all" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground"}`}
+              >
+                Todos
+              </button>
+              <button
+                type="button"
+                onClick={() => setScope("converted")}
+                className={`px-3 py-2 transition ${scope === "converted" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground"}`}
+                title="Apenas orçamentos com requisição (convertidos em venda)"
+              >
+                Convertidos
+              </button>
+            </div>
+          </div>
         </div>
         <div className="text-right text-xs text-muted-foreground">
           <div><span className="font-medium text-foreground">{fileName}</span></div>
@@ -246,15 +266,25 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
           accent
           delta={mom ? mom.delta : null}
         />
-        <KpiCard icon={<Receipt className="h-5 w-5" />} label="Orçamentos" value={fmtInt(kpis.count)} />
-        <KpiCard icon={<TrendingUp className="h-5 w-5" />} label="Ticket médio" value={fmtBRL(kpis.avg)} />
+        <KpiCard
+          icon={<Receipt className="h-5 w-5" />}
+          label="Convertidos (com requisição)"
+          value={fmtBRL(kpis.convertedValue)}
+          hint={`${kpis.taxa.toFixed(1)}% do total · ${fmtInt(kpis.convertedCount)} orçamentos`}
+        />
+        <KpiCard
+          icon={<TrendingUp className="h-5 w-5" />}
+          label={scope === "converted" ? "Ticket médio (convertidos)" : "Ticket médio"}
+          value={fmtBRL(kpis.avg)}
+          hint={`${fmtInt(kpis.count)} orçamentos ${scope === "converted" ? "convertidos" : "no filtro"}`}
+        />
         <KpiCard icon={<Users className="h-5 w-5" />} label="Atendentes" value={fmtInt(kpis.usuarios)} />
       </div>
 
       {/* Trend area */}
       <Section
         title="Evolução do faturamento"
-        subtitle="Valor total de orçamentos por mês"
+        subtitle="Total de orçamentos vs convertidos em venda, por mês"
       >
         <div className="h-80">
           <ResponsiveContainer>
@@ -264,12 +294,18 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
                   <stop offset="0%" stopColor="var(--primary-glow)" stopOpacity={0.6} />
                   <stop offset="100%" stopColor="var(--primary)" stopOpacity={0.05} />
                 </linearGradient>
+                <linearGradient id="g2" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="var(--chart-2)" stopOpacity={0.7} />
+                  <stop offset="100%" stopColor="var(--chart-2)" stopOpacity={0.05} />
+                </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
               <XAxis dataKey="label" stroke="var(--muted-foreground)" fontSize={12} />
               <YAxis stroke="var(--muted-foreground)" fontSize={12} tickFormatter={(v) => fmtBRL(v)} width={80} />
               <Tooltip content={<ChartTooltip />} />
-              <Area type="monotone" dataKey="total" name="Faturamento" stroke="var(--primary)" strokeWidth={2.5} fill="url(#g1)" />
+              <Legend wrapperStyle={{ fontSize: 12 }} />
+              <Area type="monotone" dataKey="total" name="Total orçado" stroke="var(--primary)" strokeWidth={2.5} fill="url(#g1)" />
+              <Area type="monotone" dataKey="convertido" name="Convertido (requisição)" stroke="var(--chart-2)" strokeWidth={2.5} fill="url(#g2)" />
             </AreaChart>
           </ResponsiveContainer>
         </div>
