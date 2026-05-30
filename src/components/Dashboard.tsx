@@ -519,6 +519,43 @@ function RankTable({
   );
 }
 
+function UserTable({
+  rows,
+}: {
+  rows: { usuario: string; total: number; qtd: number; pago: number; qtdPago: number }[];
+}) {
+  return (
+    <div className="max-h-80 overflow-auto">
+      <table className="w-full text-sm">
+        <thead className="sticky top-0 bg-card text-xs uppercase tracking-wider text-muted-foreground">
+          <tr>
+            <th className="py-2 pr-2 text-left font-medium">Atendente</th>
+            <th className="py-2 px-2 text-right font-medium">Orç.</th>
+            <th className="py-2 px-2 text-right font-medium">Total</th>
+            <th className="py-2 px-2 text-right font-medium">Pagos</th>
+            <th className="py-2 px-2 text-right font-medium">Valor pago</th>
+            <th className="py-2 pl-2 text-right font-medium">Comissão (2%)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.usuario} className="border-t border-border">
+              <td className="py-2 pr-2 text-foreground">{r.usuario}</td>
+              <td className="py-2 px-2 text-right tabular-nums">{fmtInt(r.qtd)}</td>
+              <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(r.total)}</td>
+              <td className="py-2 px-2 text-right tabular-nums">{fmtInt(r.qtdPago)}</td>
+              <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(r.pago)}</td>
+              <td className="py-2 pl-2 text-right font-medium tabular-nums text-primary">
+                {fmtBRL(r.pago * 0.02)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ name: string; value: number; color: string }>; label?: string }) {
   if (!active || !payload?.length) return null;
   return (
