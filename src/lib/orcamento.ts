@@ -121,6 +121,9 @@ export function loadOrcamentos(): { rows: OrcamentoRow[]; fileName: string; impo
       rows: parsed.rows.map((r: OrcamentoRow & { data: string | null }) => ({
         ...r,
         data: r.data ? new Date(r.data) : null,
+        valorRequisicao: typeof r.valorRequisicao === "number" ? r.valorRequisicao : 0,
+        valorPago: typeof r.valorPago === "number" ? r.valorPago : 0,
+        pago: typeof r.pago === "boolean" ? r.pago : false,
       })),
     };
   } catch {
