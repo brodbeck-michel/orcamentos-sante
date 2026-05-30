@@ -114,13 +114,14 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
 
   // Monthly trend
   const monthly = useMemo(() => {
-    const map = new Map<string, { mes: string; total: number; convertido: number; qtd: number }>();
+    const map = new Map<string, { mes: string; total: number; requisicao: number; pago: number; qtd: number }>();
     rows.forEach((r) => {
       if (!r.data) return;
       const k = monthKey(r.data);
-      const e = map.get(k) ?? { mes: k, total: 0, convertido: 0, qtd: 0 };
+      const e = map.get(k) ?? { mes: k, total: 0, requisicao: 0, pago: 0, qtd: 0 };
       e.total += r.total;
-      if (r.convertido) e.convertido += r.total;
+      e.requisicao += r.valorRequisicao;
+      e.pago += r.valorPago;
       e.qtd += 1;
       map.set(k, e);
     });
@@ -149,30 +150,33 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
       if (r.pago) e.qtdPago += 1;
       map.set(r.usuario, e);
     });
-    return [...map.values()].sort((a, b) => b.total - a.total);
+    return [...map.values()].sort((a, b) => b.pago - a.pago);
   }, [filtered]);
 
   // By convenio
   const byConvenio = useMemo(() => {
-    const map = new Map<string, { convenio: string; total: number; qtd: number }>();
+    const map = new Map<string, { convenio: string; total: number; pago: number; qtd: number }>();
     filtered.forEach((r) => {
       const e = map.get(r.convenioPrincipal) ?? {
         convenio: r.convenioPrincipal,
         total: 0,
+        pago: 0,
         qtd: 0,
       };
       e.total += r.total;
+      e.pago += r.valorPago;
       e.qtd += 1;
       map.set(r.convenioPrincipal, e);
     });
-    return [...map.values()].sort((a, b) => b.total - a.total);
+    return [...map.values()].sort((a, b) => b.pago - a.pago);
   }, [filtered]);
 
   const topConvenios = byConvenio.slice(0, 6);
-  const outrosTotal = byConvenio.slice(6).reduce((s, c) => s + c.total, 0);
-  const pieData = outrosTotal
-    ? [...topConvenios, { convenio: "Outros", total: outrosTotal, qtd: 0 }]
+  const outrosPago = byConvenio.slice(6).reduce((s, c) => s + c.pago, 0);
+  const pieData = outrosPago
+    ? [...topConvenios, { convenio: "Outros", total: 0, pago: outrosPago, qtd: 0 }]
     : topConvenios;
+  const pieTotalPago = pieData.reduce((s, p) => s + p.pago, 0);
 
   // User x Month stacked
   const userMonthly = useMemo(() => {
@@ -185,7 +189,7 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
         if (!r.data || monthKey(r.data) !== m) return;
         if (scope === "converted" && !r.convertido) return;
         if (topUsers.includes(r.usuario))
-          row[r.usuario] = (row[r.usuario] as number) + r.total;
+          row[r.usuario] = (row[r.usuario] as number) + r.valorPago;
       });
       return row;
     });
@@ -296,7 +300,7 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
       {/* Trend area */}
       <Section
         title="Evolução do faturamento"
-        subtitle="Total de orçamentos vs convertidos em venda, por mês"
+        subtitle="Total orçado, em requisição e pago, por mês"
       >
         <div className="h-80">
           <ResponsiveContainer>
@@ -310,6 +314,10 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
                   <stop offset="0%" stopColor="var(--chart-2)" stopOpacity={0.7} />
                   <stop offset="100%" stopColor="var(--chart-2)" stopOpacity={0.05} />
                 </linearGradient>
+                <linearGradient id="g3" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="var(--chart-3)" stopOpacity={0.7} />
+                  <stop offset="100%" stopColor="var(--chart-3)" stopOpacity={0.05} />
+                </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
               <XAxis dataKey="label" stroke="var(--muted-foreground)" fontSize={12} />
@@ -317,7 +325,8 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
               <Tooltip content={<ChartTooltip />} />
               <Legend wrapperStyle={{ fontSize: 12 }} />
               <Area type="monotone" dataKey="total" name="Total orçado" stroke="var(--primary)" strokeWidth={2.5} fill="url(#g1)" />
-              <Area type="monotone" dataKey="convertido" name="Convertido (requisição)" stroke="var(--chart-2)" strokeWidth={2.5} fill="url(#g2)" />
+              <Area type="monotone" dataKey="requisicao" name="Requisição" stroke="var(--chart-2)" strokeWidth={2.5} fill="url(#g2)" />
+              <Area type="monotone" dataKey="pago" name="Pago" stroke="var(--chart-3)" strokeWidth={2.5} fill="url(#g3)" />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -325,7 +334,7 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* By user bar */}
-        <Section title="Faturamento por atendente" subtitle="Ranking por valor total">
+        <Section title="Faturamento por atendente" subtitle="Ranking por valor pago">
           <div className="h-80">
             <ResponsiveContainer>
               <BarChart data={byUser} layout="vertical" margin={{ top: 8, right: 16, left: 8, bottom: 0 }}>
@@ -333,20 +342,20 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
                 <XAxis type="number" stroke="var(--muted-foreground)" fontSize={12} tickFormatter={(v) => fmtBRL(v)} />
                 <YAxis dataKey="usuario" type="category" stroke="var(--muted-foreground)" fontSize={12} width={110} />
                 <Tooltip content={<ChartTooltip />} />
-                <Bar dataKey="total" name="Faturamento" radius={[0, 6, 6, 0]} fill="var(--primary)" />
+                <Bar dataKey="pago" name="Valor pago" radius={[0, 6, 6, 0]} fill="var(--primary)" />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </Section>
 
         {/* By convenio donut */}
-        <Section title="Distribuição por convênio" subtitle="Participação no faturamento">
+        <Section title="Distribuição por convênio" subtitle="Participação no valor pago">
           <div className="grid h-80 grid-cols-1 sm:grid-cols-2">
             <ResponsiveContainer>
               <PieChart>
                 <Pie
                   data={pieData}
-                  dataKey="total"
+                  dataKey="pago"
                   nameKey="convenio"
                   innerRadius={55}
                   outerRadius={95}
@@ -362,7 +371,7 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
             </ResponsiveContainer>
             <div className="flex flex-col justify-center gap-2 overflow-y-auto pr-2 text-sm">
               {pieData.map((p, i) => {
-                const pct = kpis.total ? (p.total / kpis.total) * 100 : 0;
+                const pct = pieTotalPago ? (p.pago / pieTotalPago) * 100 : 0;
                 return (
                   <div key={p.convenio} className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2 truncate">
@@ -370,7 +379,7 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
                       <span className="truncate text-foreground" title={p.convenio}>{p.convenio}</span>
                     </div>
                     <div className="shrink-0 text-right">
-                      <div className="font-medium text-foreground">{fmtBRL(p.total)}</div>
+                      <div className="font-medium text-foreground">{fmtBRL(p.pago)}</div>
                       <div className="text-xs text-muted-foreground">{pct.toFixed(1)}%</div>
                     </div>
                   </div>
@@ -382,7 +391,7 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
       </div>
 
       {/* Stacked user × month */}
-      <Section title="Comparativo de atendentes ao longo do tempo" subtitle="Top 5 atendentes por mês">
+      <Section title="Comparativo de atendentes ao longo do tempo" subtitle="Top 5 atendentes por valor pago, por mês">
         <div className="h-80">
           <ResponsiveContainer>
             <LineChart data={userMonthly} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
@@ -416,11 +425,11 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
           <RankTable
             rows={byConvenio.map((c) => ({
               label: c.convenio,
-              total: c.total,
+              total: c.pago,
               qtd: c.qtd,
-              ticket: c.qtd ? c.total / c.qtd : 0,
+              ticket: c.qtd ? c.pago / c.qtd : 0,
             }))}
-            cols={["Convênio", "Orçamentos", "Ticket médio", "Total"]}
+            cols={["Convênio", "Orçamentos", "Ticket médio (pago)", "Valor pago"]}
           />
         </Section>
       </div>
