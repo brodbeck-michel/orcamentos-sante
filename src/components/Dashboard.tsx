@@ -31,6 +31,7 @@ import {
   Receipt,
   ArrowUpRight,
   ArrowDownRight,
+  Info,
 } from "lucide-react";
 
 const CHART_COLORS = [
@@ -281,26 +282,35 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
           hint={`${fmtInt(kpis.totalCount)} orçamentos`}
           accent
           delta={mom ? mom.delta : null}
+          info="Soma do valor total (vl_total1) de todos os orçamentos no período/convênio filtrado, independentemente de terem virado requisição ou pagamento."
         />
         <KpiCard
           icon={<Receipt className="h-5 w-5" />}
           label="Em requisição"
           value={fmtBRL(kpis.reqValue)}
           hint={`${fmtInt(kpis.reqCount)} req. · ${kpis.taxaReq.toFixed(1)}% do total`}
+          info="Soma do valor_requisicao dos orçamentos que foram convertidos em requisição (viraram venda efetiva no sistema)."
         />
         <KpiCard
           icon={<TrendingUp className="h-5 w-5" />}
           label="Pago (convertido)"
           value={fmtBRL(kpis.pagoValue)}
           hint={`${fmtInt(kpis.pagoCount)} pagos · ${kpis.taxaPago.toFixed(1)}% do total`}
+          info="Soma do valor_pago — dinheiro efetivamente recebido dos orçamentos pagos pelos clientes."
         />
-        <KpiCard icon={<Users className="h-5 w-5" />} label="Atendentes" value={fmtInt(kpis.usuarios)} />
+        <KpiCard
+          icon={<Users className="h-5 w-5" />}
+          label="Atendentes"
+          value={fmtInt(kpis.usuarios)}
+          info="Quantidade de atendentes distintos que registraram orçamentos nos filtros selecionados."
+        />
       </div>
 
       {/* Trend area */}
       <Section
         title="Evolução do faturamento"
         subtitle="Total orçado, em requisição e pago, por mês"
+        info="Linha do tempo mensal comparando Total orçado, Requisição (convertidos em venda) e Pago (efetivamente recebido). Use para acompanhar tendência e conversão ao longo dos meses."
       >
         <div className="h-80">
           <ResponsiveContainer>
@@ -334,7 +344,11 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* By user bar */}
-        <Section title="Faturamento por atendente" subtitle="Ranking por valor pago">
+        <Section
+          title="Faturamento por atendente"
+          subtitle="Ranking por valor pago"
+          info="Ranking dos atendentes pelo valor_pago (dinheiro recebido) dos orçamentos que cada um registrou no período filtrado."
+        >
           <div className="h-80">
             <ResponsiveContainer>
               <BarChart data={byUser} layout="vertical" margin={{ top: 8, right: 16, left: 8, bottom: 0 }}>
@@ -349,7 +363,11 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
         </Section>
 
         {/* By convenio donut */}
-        <Section title="Distribuição por convênio" subtitle="Participação no valor pago">
+        <Section
+          title="Distribuição por convênio"
+          subtitle="Participação no valor pago"
+          info="Participação de cada convênio no valor_pago total. Mostra de onde vem o faturamento efetivamente recebido."
+        >
           <div className="grid h-80 grid-cols-1 sm:grid-cols-2">
             <ResponsiveContainer>
               <PieChart>
@@ -391,7 +409,11 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
       </div>
 
       {/* Stacked user × month */}
-      <Section title="Comparativo de atendentes ao longo do tempo" subtitle="Top 5 atendentes por valor pago, por mês">
+      <Section
+        title="Comparativo de atendentes ao longo do tempo"
+        subtitle="Top 5 atendentes por valor pago, por mês"
+        info="Evolução mensal dos 5 atendentes com maior valor_pago acumulado. Útil para identificar sazonalidade, crescimento ou queda individual."
+      >
         <div className="h-80">
           <ResponsiveContainer>
             <LineChart data={userMonthly} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
@@ -418,10 +440,18 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
 
       {/* Tables */}
       <div className="grid gap-6 lg:grid-cols-2">
-        <Section title="Detalhe por atendente" subtitle={`${byUser.length} pessoas`}>
+        <Section
+          title="Detalhe por atendente"
+          subtitle={`${byUser.length} pessoas`}
+          info="Tabela por atendente com quantidade de orçamentos, total orçado, quantidade de pagos, valor pago e comissão calculada em 2% do valor pago."
+        >
           <UserTable rows={byUser} />
         </Section>
-        <Section title="Detalhe por convênio" subtitle={`${byConvenio.length} convênios`}>
+        <Section
+          title="Detalhe por convênio"
+          subtitle={`${byConvenio.length} convênios`}
+          info="Tabela por convênio com quantidade de orçamentos, ticket médio (sobre valor pago) e valor pago total."
+        >
           <RankTable
             rows={byConvenio.map((c) => ({
               label: c.convenio,
@@ -437,11 +467,14 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
   );
 }
 
-function Section({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
+function Section({ title, subtitle, info, children }: { title: string; subtitle?: string; info?: string; children: React.ReactNode }) {
   return (
     <section className="rounded-xl border border-border bg-card p-5" style={{ boxShadow: "var(--shadow-card)" }}>
       <header className="mb-4">
-        <h3 className="text-base font-semibold text-foreground">{title}</h3>
+        <div className="flex items-center gap-2">
+          <h3 className="text-base font-semibold text-foreground">{title}</h3>
+          {info && <InfoTip text={info} />}
+        </div>
         {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
       </header>
       {children}
@@ -456,6 +489,7 @@ function KpiCard({
   accent,
   delta,
   hint,
+  info,
 }: {
   icon: React.ReactNode;
   label: string;
@@ -463,6 +497,7 @@ function KpiCard({
   accent?: boolean;
   delta?: number | null;
   hint?: string;
+  info?: string;
 }) {
   return (
     <div
@@ -477,12 +512,15 @@ function KpiCard({
         <span className={`inline-flex h-9 w-9 items-center justify-center rounded-lg ${accent ? "bg-white/15" : "bg-accent text-primary"}`}>
           {icon}
         </span>
-        {delta != null && (
-          <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${accent ? "bg-white/15" : delta >= 0 ? "bg-accent text-primary" : "bg-destructive/10 text-destructive"}`}>
-            {delta >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
-            {Math.abs(delta).toFixed(1)}%
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {delta != null && (
+            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${accent ? "bg-white/15" : delta >= 0 ? "bg-accent text-primary" : "bg-destructive/10 text-destructive"}`}>
+              {delta >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+              {Math.abs(delta).toFixed(1)}%
+            </span>
+          )}
+          {info && <InfoTip text={info} onAccent={accent} />}
+        </div>
       </div>
       <div className={`mt-4 text-xs uppercase tracking-wider ${accent ? "opacity-80" : "text-muted-foreground"}`}>
         {label}
@@ -492,6 +530,26 @@ function KpiCard({
         <div className={`mt-1 text-xs ${accent ? "opacity-80" : "text-muted-foreground"}`}>{hint}</div>
       )}
     </div>
+  );
+}
+
+function InfoTip({ text, onAccent }: { text: string; onAccent?: boolean }) {
+  return (
+    <span className="group relative inline-flex">
+      <button
+        type="button"
+        aria-label="Mais informações"
+        className={`inline-flex h-5 w-5 items-center justify-center rounded-full transition ${onAccent ? "text-white/80 hover:bg-white/15 hover:text-white" : "text-muted-foreground hover:bg-accent hover:text-foreground"}`}
+      >
+        <Info className="h-3.5 w-3.5" />
+      </button>
+      <span
+        role="tooltip"
+        className="pointer-events-none absolute right-0 top-full z-20 mt-2 w-64 rounded-md border border-border bg-popover px-3 py-2 text-xs leading-relaxed text-popover-foreground opacity-0 shadow-md transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
+      >
+        {text}
+      </span>
+    </span>
   );
 }
 
