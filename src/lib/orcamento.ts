@@ -16,6 +16,9 @@ export type OrcamentoRow = {
   convenioPrincipal: string;
   requisicao: string | null;
   convertido: boolean;
+  valorRequisicao: number;
+  valorPago: number;
+  pago: boolean;
 };
 
 const toNum = (v: unknown): number => {
@@ -70,6 +73,8 @@ export async function parseOrcamentoFile(file: File): Promise<OrcamentoRow[]> {
         toStr(r["NUM_REQUISICAO"]) ??
         toStr(r["REQUISICOES"]) ??
         null;
+      const valorRequisicao = toNum(r["VALOR_REQUISICAO"]);
+      const valorPago = toNum(r["Valor_Pago"] ?? r["VALOR_PAGO"] ?? r["valor_pago"]);
       return {
         orcamento: String(r["ORCAMENTO"] ?? ""),
         data: excelDate(r["DATA_ORÇAMENTO"]),
@@ -82,10 +87,13 @@ export async function parseOrcamentoFile(file: File): Promise<OrcamentoRow[]> {
         vlTotal3: vl3,
         usuario: toStr(r["USUÁRIO"]) ?? toStr(r["USUARIO"]) ?? "NÃO INFORMADO",
         mediaConvenio: toNum(r["MEDIA_CONVENIO"]),
-        total,
+        total: vl1 || total,
         convenioPrincipal: principal,
         requisicao,
         convertido: !!requisicao,
+        valorRequisicao,
+        valorPago,
+        pago: valorPago > 0,
       } as OrcamentoRow;
     })
     .filter((r) => r.orcamento);
@@ -113,6 +121,9 @@ export function loadOrcamentos(): { rows: OrcamentoRow[]; fileName: string; impo
       rows: parsed.rows.map((r: OrcamentoRow & { data: string | null }) => ({
         ...r,
         data: r.data ? new Date(r.data) : null,
+        valorRequisicao: typeof r.valorRequisicao === "number" ? r.valorRequisicao : 0,
+        valorPago: typeof r.valorPago === "number" ? r.valorPago : 0,
+        pago: typeof r.pago === "boolean" ? r.pago : false,
       })),
     };
   } catch {

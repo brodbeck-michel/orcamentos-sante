@@ -93,14 +93,23 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
   // KPIs (base totals ignore scope so both numbers are always visible)
   const kpis = useMemo(() => {
     const total = baseFiltered.reduce((s, r) => s + r.total, 0);
-    const convertedValue = baseFiltered.reduce((s, r) => (r.convertido ? s + r.total : s), 0);
-    const convertedCount = baseFiltered.reduce((s, r) => (r.convertido ? s + 1 : s), 0);
-    const taxa = total ? (convertedValue / total) * 100 : 0;
+    const totalCount = baseFiltered.length;
+    const reqValue = baseFiltered.reduce((s, r) => s + r.valorRequisicao, 0);
+    const reqCount = baseFiltered.reduce((s, r) => (r.convertido ? s + 1 : s), 0);
+    const pagoValue = baseFiltered.reduce((s, r) => s + r.valorPago, 0);
+    const pagoCount = baseFiltered.reduce((s, r) => (r.pago ? s + 1 : s), 0);
+    const taxaReq = total ? (reqValue / total) * 100 : 0;
+    const taxaPago = total ? (pagoValue / total) * 100 : 0;
     const count = filtered.length;
     const scopeTotal = filtered.reduce((s, r) => s + r.total, 0);
     const avg = count ? scopeTotal / count : 0;
     const usuarios = new Set(filtered.map((r) => r.usuario)).size;
-    return { total, convertedValue, convertedCount, taxa, count, avg, usuarios, scopeTotal };
+    return {
+      total, totalCount,
+      reqValue, reqCount, taxaReq,
+      pagoValue, pagoCount, taxaPago,
+      count, avg, usuarios, scopeTotal,
+    };
   }, [baseFiltered, filtered]);
 
   // Monthly trend
@@ -131,11 +140,13 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
 
   // By user
   const byUser = useMemo(() => {
-    const map = new Map<string, { usuario: string; total: number; qtd: number }>();
+    const map = new Map<string, { usuario: string; total: number; qtd: number; pago: number; qtdPago: number }>();
     filtered.forEach((r) => {
-      const e = map.get(r.usuario) ?? { usuario: r.usuario, total: 0, qtd: 0 };
+      const e = map.get(r.usuario) ?? { usuario: r.usuario, total: 0, qtd: 0, pago: 0, qtdPago: 0 };
       e.total += r.total;
       e.qtd += 1;
+      e.pago += r.valorPago;
+      if (r.pago) e.qtdPago += 1;
       map.set(r.usuario, e);
     });
     return [...map.values()].sort((a, b) => b.total - a.total);
@@ -261,22 +272,23 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
           icon={<Wallet className="h-5 w-5" />}
-          label="Faturamento total"
+          label="Total orçado"
           value={fmtBRL(kpis.total)}
+          hint={`${fmtInt(kpis.totalCount)} orçamentos`}
           accent
           delta={mom ? mom.delta : null}
         />
         <KpiCard
           icon={<Receipt className="h-5 w-5" />}
-          label="Convertidos (com requisição)"
-          value={fmtBRL(kpis.convertedValue)}
-          hint={`${kpis.taxa.toFixed(1)}% do total · ${fmtInt(kpis.convertedCount)} orçamentos`}
+          label="Em requisição"
+          value={fmtBRL(kpis.reqValue)}
+          hint={`${fmtInt(kpis.reqCount)} req. · ${kpis.taxaReq.toFixed(1)}% do total`}
         />
         <KpiCard
           icon={<TrendingUp className="h-5 w-5" />}
-          label={scope === "converted" ? "Ticket médio (convertidos)" : "Ticket médio"}
-          value={fmtBRL(kpis.avg)}
-          hint={`${fmtInt(kpis.count)} orçamentos ${scope === "converted" ? "convertidos" : "no filtro"}`}
+          label="Pago (convertido)"
+          value={fmtBRL(kpis.pagoValue)}
+          hint={`${fmtInt(kpis.pagoCount)} pagos · ${kpis.taxaPago.toFixed(1)}% do total`}
         />
         <KpiCard icon={<Users className="h-5 w-5" />} label="Atendentes" value={fmtInt(kpis.usuarios)} />
       </div>
@@ -398,15 +410,7 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
       {/* Tables */}
       <div className="grid gap-6 lg:grid-cols-2">
         <Section title="Detalhe por atendente" subtitle={`${byUser.length} pessoas`}>
-          <RankTable
-            rows={byUser.map((u) => ({
-              label: u.usuario,
-              total: u.total,
-              qtd: u.qtd,
-              ticket: u.qtd ? u.total / u.qtd : 0,
-            }))}
-            cols={["Atendente", "Orçamentos", "Ticket médio", "Total"]}
-          />
+          <UserTable rows={byUser} />
         </Section>
         <Section title="Detalhe por convênio" subtitle={`${byConvenio.length} convênios`}>
           <RankTable
@@ -507,6 +511,43 @@ function RankTable({
               <td className="py-2 px-2 text-right tabular-nums">{fmtInt(r.qtd)}</td>
               <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(r.ticket)}</td>
               <td className="py-2 pl-2 text-right font-medium tabular-nums">{fmtBRL(r.total)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function UserTable({
+  rows,
+}: {
+  rows: { usuario: string; total: number; qtd: number; pago: number; qtdPago: number }[];
+}) {
+  return (
+    <div className="max-h-80 overflow-auto">
+      <table className="w-full text-sm">
+        <thead className="sticky top-0 bg-card text-xs uppercase tracking-wider text-muted-foreground">
+          <tr>
+            <th className="py-2 pr-2 text-left font-medium">Atendente</th>
+            <th className="py-2 px-2 text-right font-medium">Orç.</th>
+            <th className="py-2 px-2 text-right font-medium">Total</th>
+            <th className="py-2 px-2 text-right font-medium">Pagos</th>
+            <th className="py-2 px-2 text-right font-medium">Valor pago</th>
+            <th className="py-2 pl-2 text-right font-medium">Comissão (2%)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.usuario} className="border-t border-border">
+              <td className="py-2 pr-2 text-foreground">{r.usuario}</td>
+              <td className="py-2 px-2 text-right tabular-nums">{fmtInt(r.qtd)}</td>
+              <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(r.total)}</td>
+              <td className="py-2 px-2 text-right tabular-nums">{fmtInt(r.qtdPago)}</td>
+              <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(r.pago)}</td>
+              <td className="py-2 pl-2 text-right font-medium tabular-nums text-primary">
+                {fmtBRL(r.pago * 0.02)}
+              </td>
             </tr>
           ))}
         </tbody>
