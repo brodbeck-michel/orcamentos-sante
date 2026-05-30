@@ -1,24 +1,24 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Toaster } from "sonner";
-import { Activity, Trash2 } from "lucide-react";
+import { Activity, Trash2, LogOut, Users } from "lucide-react";
 import { UploadDropzone } from "@/components/UploadDropzone";
 import { Dashboard } from "@/components/Dashboard";
 import { clearOrcamentos, loadOrcamentos, OrcamentoRow } from "@/lib/orcamento";
+import { signOut, useAuth } from "@/lib/auth";
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/_authenticated/")({
   head: () => ({
     meta: [
       { title: "Santé · Painel de Orçamentos" },
       { name: "description", content: "Dashboard de análise dos orçamentos do Laboratório Santé." },
-      { property: "og:title", content: "Santé · Painel de Orçamentos" },
-      { property: "og:description", content: "Análise mensal de orçamentos por atendente, convênio e período." },
     ],
   }),
   component: Index,
 });
 
 function Index() {
+  const auth = useAuth();
   const [data, setData] = useState<{ rows: OrcamentoRow[]; fileName: string; importedAt: string } | null>(null);
   const [ready, setReady] = useState(false);
 
@@ -47,9 +47,9 @@ function Index() {
               <p className="text-xs text-muted-foreground">Painel de Orçamentos</p>
             </div>
           </div>
-          {data && (
-            <div className="flex items-center gap-2">
-              <UploadDropzone onLoaded={refresh} compact />
+          <div className="flex items-center gap-2">
+            {data && <UploadDropzone onLoaded={refresh} compact />}
+            {data && (
               <button
                 onClick={() => {
                   if (confirm("Remover os dados importados?")) {
@@ -62,8 +62,30 @@ function Index() {
               >
                 <Trash2 className="h-4 w-4" />
               </button>
+            )}
+            {auth.isAdmin && (
+              <Link
+                to="/admin/users"
+                className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground transition hover:bg-accent"
+              >
+                <Users className="h-4 w-4" />
+                Usuários
+              </Link>
+            )}
+            <div className="hidden sm:block text-right">
+              <div className="text-xs text-muted-foreground">{auth.user?.email}</div>
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                {auth.role ?? "—"}
+              </div>
             </div>
-          )}
+            <button
+              onClick={signOut}
+              className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm text-muted-foreground transition hover:bg-accent hover:text-foreground"
+              title="Sair"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </header>
 
