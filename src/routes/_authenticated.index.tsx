@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Toaster } from "sonner";
-import { Activity, Trash2, LogOut, Users } from "lucide-react";
+import { Activity, Trash2, LogOut, Users, ClipboardList } from "lucide-react";
 import { UploadDropzone } from "@/components/UploadDropzone";
 import { Dashboard } from "@/components/Dashboard";
 import { clearOrcamentos, loadOrcamentos, OrcamentoRow } from "@/lib/orcamento";
@@ -72,6 +72,13 @@ function Index() {
                 Usuários
               </Link>
             )}
+            <Link
+              to="/conferencia"
+              className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground transition hover:bg-accent"
+            >
+              <ClipboardList className="h-4 w-4" />
+              Conferência
+            </Link>
             <div className="hidden sm:block text-right">
               <div className="text-xs text-muted-foreground">{auth.user?.email}</div>
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
