@@ -610,15 +610,7 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
           subtitle={`${byConvenio.length} convênios`}
           info="Tabela por convênio com quantidade de orçamentos, ticket médio (sobre valor pago) e valor pago total."
         >
-          <RankTable
-            rows={byConvenio.map((c) => ({
-              label: c.convenio,
-              total: c.pago,
-              qtd: c.qtd,
-              ticket: c.qtd ? c.pago / c.qtd : 0,
-            }))}
-            cols={["Convênio", "Orçamentos", "Ticket médio (pago)", "Valor pago"]}
-          />
+          <ConvenioTable rows={byConvenio} />
         </Section>
       </div>
     </div>
