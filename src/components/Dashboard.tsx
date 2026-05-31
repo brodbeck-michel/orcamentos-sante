@@ -371,7 +371,7 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
           icon={<Wallet className="h-5 w-5" />}
           label="Total orçado"
           value={fmtBRL(kpis.total)}
-          hint={`${fmtInt(kpis.totalCount)} orçamentos`}
+          hint={`${fmtInt(kpis.totalCount)} orçamentos · ticket ${fmtBRL(kpis.ticketMedio)} · conv. ${kpis.conversaoQtd.toFixed(1)}%`}
           accent
           delta={mom ? mom.delta : null}
           info="Soma do valor total (vl_total1) de todos os orçamentos no período/convênio filtrado, independentemente de terem virado requisição ou pagamento."
@@ -387,16 +387,78 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
           icon={<TrendingUp className="h-5 w-5" />}
           label="Pago (convertido)"
           value={fmtBRL(kpis.pagoValue)}
-          hint={`${fmtInt(kpis.pagoCount)} pagos · ${kpis.taxaPago.toFixed(1)}% do total`}
+          hint={`${fmtInt(kpis.pagoCount)} pagos · ${kpis.taxaPago.toFixed(1)}% do orçado · ${kpis.conversaoQtd.toFixed(1)}% conversão`}
           info="Soma do valor_pago — dinheiro efetivamente recebido dos orçamentos pagos pelos clientes."
         />
         <KpiCard
           icon={<Users className="h-5 w-5" />}
           label="Atendentes"
           value={fmtInt(kpis.usuarios)}
+          hint={`${fmtInt(kpis.usuarios)} ativo(s) no período`}
           info="Quantidade de atendentes distintos que registraram orçamentos nos filtros selecionados."
         />
       </div>
+
+      {/* Insights & Alerts */}
+      {(insights.length > 0 || alerts.length > 0) && (
+        <div className="grid gap-6 lg:grid-cols-2">
+          {insights.length > 0 && (
+            <section className="rounded-xl border border-border bg-card p-5" style={{ boxShadow: "var(--shadow-card)" }}>
+              <header className="mb-3 flex items-center gap-2">
+                <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-accent text-primary">
+                  <Sparkles className="h-4 w-4" />
+                </span>
+                <div>
+                  <h3 className="text-base font-semibold text-foreground">Insights do período</h3>
+                  <p className="text-xs text-muted-foreground">Leitura automática dos dados filtrados</p>
+                </div>
+              </header>
+              <ul className="space-y-2 text-sm">
+                {insights.map((it, i) => {
+                  const Icon = it.icon === "trophy" ? Trophy : it.icon === "target" ? Target : Sparkles;
+                  return (
+                    <li key={i} className="flex items-start gap-3 rounded-md border border-border/60 bg-background/40 px-3 py-2">
+                      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                      <span className="text-muted-foreground leading-relaxed">{it.text}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          )}
+          {alerts.length > 0 && (
+            <section className="rounded-xl border border-border bg-card p-5" style={{ boxShadow: "var(--shadow-card)" }}>
+              <header className="mb-3 flex items-center gap-2">
+                <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-accent text-primary">
+                  <AlertTriangle className="h-4 w-4" />
+                </span>
+                <div>
+                  <h3 className="text-base font-semibold text-foreground">Alertas de gestão</h3>
+                  <p className="text-xs text-muted-foreground">Sinais que merecem atenção</p>
+                </div>
+              </header>
+              <ul className="space-y-2 text-sm">
+                {alerts.map((a, i) => {
+                  const cls =
+                    a.level === "ok"
+                      ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-700 dark:text-emerald-300"
+                      : a.level === "warn"
+                      ? "border-amber-500/30 bg-amber-500/5 text-amber-700 dark:text-amber-300"
+                      : "border-destructive/40 bg-destructive/5 text-destructive";
+                  const dot =
+                    a.level === "ok" ? "bg-emerald-500" : a.level === "warn" ? "bg-amber-500" : "bg-destructive";
+                  return (
+                    <li key={i} className={`flex items-start gap-3 rounded-md border px-3 py-2 ${cls}`}>
+                      <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${dot}`} />
+                      <span className="leading-relaxed">{a.text}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          )}
+        </div>
+      )}
 
       {/* Trend area */}
       <Section
