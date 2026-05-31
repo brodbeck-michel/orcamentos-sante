@@ -32,6 +32,10 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Info,
+  Sparkles,
+  AlertTriangle,
+  Trophy,
+  Target,
 } from "lucide-react";
 
 const CHART_COLORS = [
@@ -108,11 +112,15 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
     const scopeTotal = filtered.reduce((s, r) => s + r.total, 0);
     const avg = count ? scopeTotal / count : 0;
     const usuarios = new Set(filtered.map((r) => r.usuario)).size;
+    const ticketMedio = totalCount ? total / totalCount : 0;
+    const conversaoQtd = totalCount ? (pagoCount / totalCount) * 100 : 0;
+    const participacaoPago = total ? (pagoValue / total) * 100 : 0;
     return {
       total, totalCount,
       reqValue, reqCount, taxaReq,
       pagoValue, pagoCount, taxaPago,
       count, avg, usuarios, scopeTotal,
+      ticketMedio, conversaoQtd, participacaoPago,
     };
   }, [baseFiltered, filtered]);
 
