@@ -190,6 +190,108 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
     : topConvenios;
   const pieTotalPago = pieData.reduce((s, p) => s + p.pago, 0);
 
+  // Concentration: top 2 convênios share of valor pago
+  const concentracao = useMemo(() => {
+    const totalPago = byConvenio.reduce((s, c) => s + c.pago, 0);
+    const top2 = byConvenio.slice(0, 2);
+    const top2Pago = top2.reduce((s, c) => s + c.pago, 0);
+    const pct = totalPago ? (top2Pago / totalPago) * 100 : 0;
+    return { pct, top2, totalPago };
+  }, [byConvenio]);
+
+  // Insights
+  const insights = useMemo(() => {
+    const list: { icon: "trophy" | "target" | "sparkles"; text: React.ReactNode }[] = [];
+    const topUser = [...byUser].sort((a, b) => b.pago - a.pago)[0];
+    if (topUser && topUser.pago > 0) {
+      list.push({
+        icon: "trophy",
+        text: <>Atendente com maior valor pago: <strong className="text-foreground">{topUser.usuario}</strong> ({fmtBRLFull(topUser.pago)}).</>,
+      });
+    }
+    const topConv = [...byConvenio].sort((a, b) => b.pago - a.pago)[0];
+    if (topConv && topConv.pago > 0) {
+      list.push({
+        icon: "trophy",
+        text: <>Convênio com maior faturamento: <strong className="text-foreground">{topConv.convenio}</strong> ({fmtBRLFull(topConv.pago)}).</>,
+      });
+    }
+    if (monthly.length) {
+      const best = [...monthly].sort((a, b) => b.pago - a.pago)[0];
+      if (best && best.pago > 0) {
+        list.push({
+          icon: "sparkles",
+          text: <>Melhor mês do período: <strong className="text-foreground">{best.label}</strong> ({fmtBRLFull(best.pago)} pagos).</>,
+        });
+      }
+    }
+    if (kpis.ticketMedio > 0) {
+      list.push({
+        icon: "target",
+        text: <>Ticket médio geral: <strong className="text-foreground">{fmtBRLFull(kpis.ticketMedio)}</strong> por orçamento.</>,
+      });
+    }
+    if (concentracao.top2.length >= 2 && concentracao.pct > 0) {
+      list.push({
+        icon: "target",
+        text: <><strong className="text-foreground">{concentracao.pct.toFixed(0)}%</strong> do faturamento está concentrado em <strong className="text-foreground">{concentracao.top2.map((c) => c.convenio).join(" e ")}</strong>.</>,
+      });
+    }
+    return list;
+  }, [byUser, byConvenio, monthly, kpis.ticketMedio, concentracao]);
+
+  // Alerts
+  const alerts = useMemo(() => {
+    const list: { level: "ok" | "warn" | "danger"; text: React.ReactNode }[] = [];
+    if (concentracao.pct >= 70 && concentracao.top2.length >= 2) {
+      list.push({
+        level: "danger",
+        text: <>Receita concentrada: <strong>{concentracao.pct.toFixed(0)}%</strong> vem de apenas 2 convênios. Risco de dependência.</>,
+      });
+    } else if (concentracao.pct >= 50 && concentracao.top2.length >= 2) {
+      list.push({
+        level: "warn",
+        text: <>Concentração moderada: <strong>{concentracao.pct.toFixed(0)}%</strong> do faturamento vem dos 2 maiores convênios.</>,
+      });
+    } else if (byConvenio.length > 0) {
+      list.push({ level: "ok", text: <>Carteira de convênios bem distribuída.</> });
+    }
+
+    const semPagto = byUser.filter((u) => u.pago === 0);
+    if (semPagto.length > 0) {
+      list.push({
+        level: "warn",
+        text: <><strong>{semPagto.length}</strong> atendente(s) sem pagamentos registrados no período: {semPagto.slice(0, 3).map((u) => u.usuario).join(", ")}{semPagto.length > 3 ? "…" : ""}.</>,
+      });
+    }
+
+    const totalPago = concentracao.totalPago;
+    if (totalPago > 0) {
+      const baixos = byConvenio.filter((c) => c.pago > 0 && (c.pago / totalPago) * 100 < 2);
+      if (baixos.length >= 3) {
+        list.push({
+          level: "warn",
+          text: <><strong>{baixos.length}</strong> convênios com participação inferior a 2% no faturamento.</>,
+        });
+      }
+    }
+
+    if (mom) {
+      if (mom.delta < -10) {
+        list.push({
+          level: "danger",
+          text: <>Queda de <strong>{Math.abs(mom.delta).toFixed(1)}%</strong> no faturamento orçado entre {mom.prev.mes && monthLabel(mom.prev.mes)} e {monthLabel(mom.cur.mes)}.</>,
+        });
+      } else if (mom.delta > 10) {
+        list.push({
+          level: "ok",
+          text: <>Crescimento de <strong>{mom.delta.toFixed(1)}%</strong> no faturamento orçado vs. mês anterior.</>,
+        });
+      }
+    }
+    return list;
+  }, [concentracao, byUser, byConvenio, mom]);
+
   // User x Month stacked
   const userMonthly = useMemo(() => {
     const months = monthly.map((m) => m.mes);
