@@ -387,9 +387,10 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
         />
         <KpiCard
           icon={<TrendingUp className="h-5 w-5" />}
-          label="Pago (convertido)"
+          label="Recebido"
           value={fmtBRL(kpis.pagoValue)}
-          hint={`${fmtInt(kpis.pagoCount)} pagos · ${kpis.taxaPago.toFixed(1)}% do orçado · ${kpis.conversaoQtd.toFixed(1)}% conversão`}
+          hint={`${fmtInt(kpis.pagoCount)} pagos · ${kpis.taxaPago.toFixed(1)}% do orçado`}
+          progress={{ value: kpis.conversaoQtd, label: "Taxa de conversão" }}
           info="Soma do valor_pago — dinheiro efetivamente recebido dos orçamentos pagos pelos clientes."
         />
         <KpiCard
@@ -642,6 +643,7 @@ function KpiCard({
   delta,
   hint,
   info,
+  progress,
 }: {
   icon: React.ReactNode;
   label: string;
@@ -650,6 +652,7 @@ function KpiCard({
   delta?: number | null;
   hint?: string;
   info?: string;
+  progress?: { value: number; label?: string };
 }) {
   return (
     <div
@@ -680,6 +683,25 @@ function KpiCard({
       <div className="mt-1 text-2xl font-semibold tracking-tight">{value}</div>
       {hint && (
         <div className={`mt-1 text-xs ${accent ? "opacity-80" : "text-muted-foreground"}`}>{hint}</div>
+      )}
+      {progress && (
+        <div className="mt-3">
+          <div className={`mb-1 flex items-center justify-between text-[11px] ${accent ? "opacity-90" : "text-muted-foreground"}`}>
+            <span className="uppercase tracking-wider">{progress.label ?? "Progresso"}</span>
+            <span className={`font-semibold ${accent ? "" : "text-foreground"}`}>{progress.value.toFixed(1)}%</span>
+          </div>
+          <div className={`h-1.5 w-full overflow-hidden rounded-full ${accent ? "bg-white/20" : "bg-accent"}`}>
+            <div
+              className="h-full rounded-full transition-all"
+              style={{
+                width: `${Math.max(0, Math.min(100, progress.value))}%`,
+                background: accent
+                  ? "rgba(255,255,255,0.9)"
+                  : "var(--gradient-primary)",
+              }}
+            />
+          </div>
+        </div>
       )}
     </div>
   );
