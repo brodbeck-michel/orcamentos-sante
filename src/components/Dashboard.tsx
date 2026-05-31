@@ -167,17 +167,19 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
 
   // By convenio
   const byConvenio = useMemo(() => {
-    const map = new Map<string, { convenio: string; total: number; pago: number; qtd: number }>();
+    const map = new Map<string, { convenio: string; total: number; pago: number; qtd: number; qtdPago: number }>();
     filtered.forEach((r) => {
       const e = map.get(r.convenioPrincipal) ?? {
         convenio: r.convenioPrincipal,
         total: 0,
         pago: 0,
         qtd: 0,
+        qtdPago: 0,
       };
       e.total += r.total;
       e.pago += r.valorPago;
       e.qtd += 1;
+      if (r.pago) e.qtdPago += 1;
       map.set(r.convenioPrincipal, e);
     });
     return [...map.values()].sort((a, b) => b.pago - a.pago);
@@ -751,22 +753,84 @@ function UserTable({
             <th className="py-2 px-2 text-right font-medium">Total</th>
             <th className="py-2 px-2 text-right font-medium">Pagos</th>
             <th className="py-2 px-2 text-right font-medium">Valor pago</th>
+            <th className="py-2 px-2 text-right font-medium">Conv. %</th>
             <th className="py-2 pl-2 text-right font-medium">Comissão (2%)</th>
           </tr>
         </thead>
         <tbody>
-          {rows.map((r) => (
+          {rows.map((r) => {
+            const conv = r.qtd ? (r.qtdPago / r.qtd) * 100 : 0;
+            const badgeCls =
+              conv >= 50
+                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                : conv >= 25
+                ? "bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                : "bg-destructive/10 text-destructive";
+            return (
             <tr key={r.usuario} className="border-t border-border">
               <td className="py-2 pr-2 text-foreground">{r.usuario}</td>
               <td className="py-2 px-2 text-right tabular-nums">{fmtInt(r.qtd)}</td>
               <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(r.total)}</td>
               <td className="py-2 px-2 text-right tabular-nums">{fmtInt(r.qtdPago)}</td>
               <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(r.pago)}</td>
+              <td className="py-2 px-2 text-right tabular-nums">
+                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${badgeCls}`}>
+                  {conv.toFixed(1)}%
+                </span>
+              </td>
               <td className="py-2 pl-2 text-right font-medium tabular-nums text-primary">
                 {fmtBRL(r.pago * 0.02)}
               </td>
             </tr>
-          ))}
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function ConvenioTable({
+  rows,
+}: {
+  rows: { convenio: string; total: number; pago: number; qtd: number; qtdPago: number }[];
+}) {
+  return (
+    <div className="max-h-80 overflow-auto">
+      <table className="w-full text-sm">
+        <thead className="sticky top-0 bg-card text-xs uppercase tracking-wider text-muted-foreground">
+          <tr>
+            <th className="py-2 pr-2 text-left font-medium">Convênio</th>
+            <th className="py-2 px-2 text-right font-medium">Orç.</th>
+            <th className="py-2 px-2 text-right font-medium">Ticket (pago)</th>
+            <th className="py-2 px-2 text-right font-medium">Valor pago</th>
+            <th className="py-2 pl-2 text-right font-medium">Conv. %</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => {
+            const ticket = r.qtdPago ? r.pago / r.qtdPago : 0;
+            const conv = r.qtd ? (r.qtdPago / r.qtd) * 100 : 0;
+            const badgeCls =
+              conv >= 50
+                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                : conv >= 25
+                ? "bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                : "bg-destructive/10 text-destructive";
+            return (
+              <tr key={r.convenio} className="border-t border-border">
+                <td className="py-2 pr-2 text-foreground">{r.convenio}</td>
+                <td className="py-2 px-2 text-right tabular-nums">{fmtInt(r.qtd)}</td>
+                <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(ticket)}</td>
+                <td className="py-2 px-2 text-right font-medium tabular-nums">{fmtBRL(r.pago)}</td>
+                <td className="py-2 pl-2 text-right tabular-nums">
+                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${badgeCls}`}>
+                    {conv.toFixed(1)}%
+                  </span>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
