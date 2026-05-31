@@ -61,8 +61,15 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
     return { minISO: toISO(min), maxISO: toISO(max) };
   }, [rows]);
 
-  const [dateFrom, setDateFrom] = useState<string>("");
-  const [dateTo, setDateTo] = useState<string>("");
+  const [dateFrom, setDateFrom] = useState<string>(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+  });
+  const [dateTo, setDateTo] = useState<string>(() => {
+    const d = new Date();
+    const last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+    return `${last.getFullYear()}-${String(last.getMonth() + 1).padStart(2, "0")}-${String(last.getDate()).padStart(2, "0")}`;
+  });
   const [convenioFilter, setConvenioFilter] = useState<string>("all");
 
   const conveniosList = useMemo(() => {
