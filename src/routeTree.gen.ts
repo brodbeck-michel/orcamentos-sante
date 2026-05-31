@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated.index'
+import { Route as AuthenticatedConferenciaRouteImport } from './routes/_authenticated.conferencia'
 import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authenticated.admin.users'
 
 const AuthenticatedRoute = AuthenticatedRouteImport.update({
@@ -22,6 +23,12 @@ const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedConferenciaRoute =
+  AuthenticatedConferenciaRouteImport.update({
+    id: '/conferencia',
+    path: '/conferencia',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedAdminUsersRoute = AuthenticatedAdminUsersRouteImport.update({
   id: '/admin/users',
   path: '/admin/users',
@@ -30,26 +37,30 @@ const AuthenticatedAdminUsersRoute = AuthenticatedAdminUsersRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
+  '/conferencia': typeof AuthenticatedConferenciaRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
 }
 export interface FileRoutesByTo {
+  '/conferencia': typeof AuthenticatedConferenciaRoute
   '/': typeof AuthenticatedIndexRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authenticated': typeof AuthenticatedRouteWithChildren
+  '/_authenticated/conferencia': typeof AuthenticatedConferenciaRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/admin/users': typeof AuthenticatedAdminUsersRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/admin/users'
+  fullPaths: '/' | '/conferencia' | '/admin/users'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/admin/users'
+  to: '/conferencia' | '/' | '/admin/users'
   id:
     | '__root__'
     | '/_authenticated'
+    | '/_authenticated/conferencia'
     | '/_authenticated/'
     | '/_authenticated/admin/users'
   fileRoutesById: FileRoutesById
@@ -74,6 +85,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/conferencia': {
+      id: '/_authenticated/conferencia'
+      path: '/conferencia'
+      fullPath: '/conferencia'
+      preLoaderRoute: typeof AuthenticatedConferenciaRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/admin/users': {
       id: '/_authenticated/admin/users'
       path: '/admin/users'
@@ -85,11 +103,13 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteChildren {
+  AuthenticatedConferenciaRoute: typeof AuthenticatedConferenciaRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedAdminUsersRoute: typeof AuthenticatedAdminUsersRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
+  AuthenticatedConferenciaRoute: AuthenticatedConferenciaRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedAdminUsersRoute: AuthenticatedAdminUsersRoute,
 }
