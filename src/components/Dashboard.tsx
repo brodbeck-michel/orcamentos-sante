@@ -387,9 +387,10 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
         />
         <KpiCard
           icon={<TrendingUp className="h-5 w-5" />}
-          label="Pago (convertido)"
+          label="Recebido"
           value={fmtBRL(kpis.pagoValue)}
-          hint={`${fmtInt(kpis.pagoCount)} pagos · ${kpis.taxaPago.toFixed(1)}% do orçado · ${kpis.conversaoQtd.toFixed(1)}% conversão`}
+          hint={`${fmtInt(kpis.pagoCount)} pagos · ${kpis.taxaPago.toFixed(1)}% do orçado`}
+          progress={{ value: kpis.conversaoQtd, label: "Taxa de conversão" }}
           info="Soma do valor_pago — dinheiro efetivamente recebido dos orçamentos pagos pelos clientes."
         />
         <KpiCard
