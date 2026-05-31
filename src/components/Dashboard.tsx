@@ -32,6 +32,10 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Info,
+  Sparkles,
+  AlertTriangle,
+  Trophy,
+  Target,
 } from "lucide-react";
 
 const CHART_COLORS = [
@@ -108,11 +112,15 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
     const scopeTotal = filtered.reduce((s, r) => s + r.total, 0);
     const avg = count ? scopeTotal / count : 0;
     const usuarios = new Set(filtered.map((r) => r.usuario)).size;
+    const ticketMedio = totalCount ? total / totalCount : 0;
+    const conversaoQtd = totalCount ? (pagoCount / totalCount) * 100 : 0;
+    const participacaoPago = total ? (pagoValue / total) * 100 : 0;
     return {
       total, totalCount,
       reqValue, reqCount, taxaReq,
       pagoValue, pagoCount, taxaPago,
       count, avg, usuarios, scopeTotal,
+      ticketMedio, conversaoQtd, participacaoPago,
     };
   }, [baseFiltered, filtered]);
 
@@ -159,17 +167,19 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
 
   // By convenio
   const byConvenio = useMemo(() => {
-    const map = new Map<string, { convenio: string; total: number; pago: number; qtd: number }>();
+    const map = new Map<string, { convenio: string; total: number; pago: number; qtd: number; qtdPago: number }>();
     filtered.forEach((r) => {
       const e = map.get(r.convenioPrincipal) ?? {
         convenio: r.convenioPrincipal,
         total: 0,
         pago: 0,
         qtd: 0,
+        qtdPago: 0,
       };
       e.total += r.total;
       e.pago += r.valorPago;
       e.qtd += 1;
+      if (r.pago) e.qtdPago += 1;
       map.set(r.convenioPrincipal, e);
     });
     return [...map.values()].sort((a, b) => b.pago - a.pago);
@@ -181,6 +191,108 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
     ? [...topConvenios, { convenio: "Outros", total: 0, pago: outrosPago, qtd: 0 }]
     : topConvenios;
   const pieTotalPago = pieData.reduce((s, p) => s + p.pago, 0);
+
+  // Concentration: top 2 convênios share of valor pago
+  const concentracao = useMemo(() => {
+    const totalPago = byConvenio.reduce((s, c) => s + c.pago, 0);
+    const top2 = byConvenio.slice(0, 2);
+    const top2Pago = top2.reduce((s, c) => s + c.pago, 0);
+    const pct = totalPago ? (top2Pago / totalPago) * 100 : 0;
+    return { pct, top2, totalPago };
+  }, [byConvenio]);
+
+  // Insights
+  const insights = useMemo(() => {
+    const list: { icon: "trophy" | "target" | "sparkles"; text: React.ReactNode }[] = [];
+    const topUser = [...byUser].sort((a, b) => b.pago - a.pago)[0];
+    if (topUser && topUser.pago > 0) {
+      list.push({
+        icon: "trophy",
+        text: <>Atendente com maior valor pago: <strong className="text-foreground">{topUser.usuario}</strong> ({fmtBRLFull(topUser.pago)}).</>,
+      });
+    }
+    const topConv = [...byConvenio].sort((a, b) => b.pago - a.pago)[0];
+    if (topConv && topConv.pago > 0) {
+      list.push({
+        icon: "trophy",
+        text: <>Convênio com maior faturamento: <strong className="text-foreground">{topConv.convenio}</strong> ({fmtBRLFull(topConv.pago)}).</>,
+      });
+    }
+    if (monthly.length) {
+      const best = [...monthly].sort((a, b) => b.pago - a.pago)[0];
+      if (best && best.pago > 0) {
+        list.push({
+          icon: "sparkles",
+          text: <>Melhor mês do período: <strong className="text-foreground">{best.label}</strong> ({fmtBRLFull(best.pago)} pagos).</>,
+        });
+      }
+    }
+    if (kpis.ticketMedio > 0) {
+      list.push({
+        icon: "target",
+        text: <>Ticket médio geral: <strong className="text-foreground">{fmtBRLFull(kpis.ticketMedio)}</strong> por orçamento.</>,
+      });
+    }
+    if (concentracao.top2.length >= 2 && concentracao.pct > 0) {
+      list.push({
+        icon: "target",
+        text: <><strong className="text-foreground">{concentracao.pct.toFixed(0)}%</strong> do faturamento está concentrado em <strong className="text-foreground">{concentracao.top2.map((c) => c.convenio).join(" e ")}</strong>.</>,
+      });
+    }
+    return list;
+  }, [byUser, byConvenio, monthly, kpis.ticketMedio, concentracao]);
+
+  // Alerts
+  const alerts = useMemo(() => {
+    const list: { level: "ok" | "warn" | "danger"; text: React.ReactNode }[] = [];
+    if (concentracao.pct >= 70 && concentracao.top2.length >= 2) {
+      list.push({
+        level: "danger",
+        text: <>Receita concentrada: <strong>{concentracao.pct.toFixed(0)}%</strong> vem de apenas 2 convênios. Risco de dependência.</>,
+      });
+    } else if (concentracao.pct >= 50 && concentracao.top2.length >= 2) {
+      list.push({
+        level: "warn",
+        text: <>Concentração moderada: <strong>{concentracao.pct.toFixed(0)}%</strong> do faturamento vem dos 2 maiores convênios.</>,
+      });
+    } else if (byConvenio.length > 0) {
+      list.push({ level: "ok", text: <>Carteira de convênios bem distribuída.</> });
+    }
+
+    const semPagto = byUser.filter((u) => u.pago === 0);
+    if (semPagto.length > 0) {
+      list.push({
+        level: "warn",
+        text: <><strong>{semPagto.length}</strong> atendente(s) sem pagamentos registrados no período: {semPagto.slice(0, 3).map((u) => u.usuario).join(", ")}{semPagto.length > 3 ? "…" : ""}.</>,
+      });
+    }
+
+    const totalPago = concentracao.totalPago;
+    if (totalPago > 0) {
+      const baixos = byConvenio.filter((c) => c.pago > 0 && (c.pago / totalPago) * 100 < 2);
+      if (baixos.length >= 3) {
+        list.push({
+          level: "warn",
+          text: <><strong>{baixos.length}</strong> convênios com participação inferior a 2% no faturamento.</>,
+        });
+      }
+    }
+
+    if (mom) {
+      if (mom.delta < -10) {
+        list.push({
+          level: "danger",
+          text: <>Queda de <strong>{Math.abs(mom.delta).toFixed(1)}%</strong> no faturamento orçado entre {mom.prev.mes && monthLabel(mom.prev.mes)} e {monthLabel(mom.cur.mes)}.</>,
+        });
+      } else if (mom.delta > 10) {
+        list.push({
+          level: "ok",
+          text: <>Crescimento de <strong>{mom.delta.toFixed(1)}%</strong> no faturamento orçado vs. mês anterior.</>,
+        });
+      }
+    }
+    return list;
+  }, [concentracao, byUser, byConvenio, mom]);
 
   // User x Month stacked
   const userMonthly = useMemo(() => {
@@ -261,7 +373,7 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
           icon={<Wallet className="h-5 w-5" />}
           label="Total orçado"
           value={fmtBRL(kpis.total)}
-          hint={`${fmtInt(kpis.totalCount)} orçamentos`}
+          hint={`${fmtInt(kpis.totalCount)} orçamentos · ticket ${fmtBRL(kpis.ticketMedio)} · conv. ${kpis.conversaoQtd.toFixed(1)}%`}
           accent
           delta={mom ? mom.delta : null}
           info="Soma do valor total (vl_total1) de todos os orçamentos no período/convênio filtrado, independentemente de terem virado requisição ou pagamento."
@@ -277,16 +389,78 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
           icon={<TrendingUp className="h-5 w-5" />}
           label="Pago (convertido)"
           value={fmtBRL(kpis.pagoValue)}
-          hint={`${fmtInt(kpis.pagoCount)} pagos · ${kpis.taxaPago.toFixed(1)}% do total`}
+          hint={`${fmtInt(kpis.pagoCount)} pagos · ${kpis.taxaPago.toFixed(1)}% do orçado · ${kpis.conversaoQtd.toFixed(1)}% conversão`}
           info="Soma do valor_pago — dinheiro efetivamente recebido dos orçamentos pagos pelos clientes."
         />
         <KpiCard
           icon={<Users className="h-5 w-5" />}
           label="Atendentes"
           value={fmtInt(kpis.usuarios)}
+          hint={`${fmtInt(kpis.usuarios)} ativo(s) no período`}
           info="Quantidade de atendentes distintos que registraram orçamentos nos filtros selecionados."
         />
       </div>
+
+      {/* Insights & Alerts */}
+      {(insights.length > 0 || alerts.length > 0) && (
+        <div className="grid gap-6 lg:grid-cols-2">
+          {insights.length > 0 && (
+            <section className="rounded-xl border border-border bg-card p-5" style={{ boxShadow: "var(--shadow-card)" }}>
+              <header className="mb-3 flex items-center gap-2">
+                <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-accent text-primary">
+                  <Sparkles className="h-4 w-4" />
+                </span>
+                <div>
+                  <h3 className="text-base font-semibold text-foreground">Insights do período</h3>
+                  <p className="text-xs text-muted-foreground">Leitura automática dos dados filtrados</p>
+                </div>
+              </header>
+              <ul className="space-y-2 text-sm">
+                {insights.map((it, i) => {
+                  const Icon = it.icon === "trophy" ? Trophy : it.icon === "target" ? Target : Sparkles;
+                  return (
+                    <li key={i} className="flex items-start gap-3 rounded-md border border-border/60 bg-background/40 px-3 py-2">
+                      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                      <span className="text-muted-foreground leading-relaxed">{it.text}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          )}
+          {alerts.length > 0 && (
+            <section className="rounded-xl border border-border bg-card p-5" style={{ boxShadow: "var(--shadow-card)" }}>
+              <header className="mb-3 flex items-center gap-2">
+                <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-accent text-primary">
+                  <AlertTriangle className="h-4 w-4" />
+                </span>
+                <div>
+                  <h3 className="text-base font-semibold text-foreground">Alertas de gestão</h3>
+                  <p className="text-xs text-muted-foreground">Sinais que merecem atenção</p>
+                </div>
+              </header>
+              <ul className="space-y-2 text-sm">
+                {alerts.map((a, i) => {
+                  const cls =
+                    a.level === "ok"
+                      ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-700 dark:text-emerald-300"
+                      : a.level === "warn"
+                      ? "border-amber-500/30 bg-amber-500/5 text-amber-700 dark:text-amber-300"
+                      : "border-destructive/40 bg-destructive/5 text-destructive";
+                  const dot =
+                    a.level === "ok" ? "bg-emerald-500" : a.level === "warn" ? "bg-amber-500" : "bg-destructive";
+                  return (
+                    <li key={i} className={`flex items-start gap-3 rounded-md border px-3 py-2 ${cls}`}>
+                      <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${dot}`} />
+                      <span className="leading-relaxed">{a.text}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          )}
+        </div>
+      )}
 
       {/* Trend area */}
       <Section
@@ -347,7 +521,11 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
         {/* By convenio donut */}
         <Section
           title="Distribuição por convênio"
-          subtitle="Participação no valor pago"
+          subtitle={
+            concentracao.top2.length >= 2 && concentracao.pct > 0
+              ? `${concentracao.pct.toFixed(0)}% concentrado em ${concentracao.top2.map((c) => c.convenio).join(" e ")}`
+              : "Participação no valor pago"
+          }
           info="Participação de cada convênio no valor_pago total. Mostra de onde vem o faturamento efetivamente recebido."
         >
           <div className="grid h-80 grid-cols-1 sm:grid-cols-2">
@@ -434,15 +612,7 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
           subtitle={`${byConvenio.length} convênios`}
           info="Tabela por convênio com quantidade de orçamentos, ticket médio (sobre valor pago) e valor pago total."
         >
-          <RankTable
-            rows={byConvenio.map((c) => ({
-              label: c.convenio,
-              total: c.pago,
-              qtd: c.qtd,
-              ticket: c.qtd ? c.pago / c.qtd : 0,
-            }))}
-            cols={["Convênio", "Orçamentos", "Ticket médio (pago)", "Valor pago"]}
-          />
+          <ConvenioTable rows={byConvenio} />
         </Section>
       </div>
     </div>
@@ -583,22 +753,84 @@ function UserTable({
             <th className="py-2 px-2 text-right font-medium">Total</th>
             <th className="py-2 px-2 text-right font-medium">Pagos</th>
             <th className="py-2 px-2 text-right font-medium">Valor pago</th>
+            <th className="py-2 px-2 text-right font-medium">Conv. %</th>
             <th className="py-2 pl-2 text-right font-medium">Comissão (2%)</th>
           </tr>
         </thead>
         <tbody>
-          {rows.map((r) => (
+          {rows.map((r) => {
+            const conv = r.qtd ? (r.qtdPago / r.qtd) * 100 : 0;
+            const badgeCls =
+              conv >= 50
+                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                : conv >= 25
+                ? "bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                : "bg-destructive/10 text-destructive";
+            return (
             <tr key={r.usuario} className="border-t border-border">
               <td className="py-2 pr-2 text-foreground">{r.usuario}</td>
               <td className="py-2 px-2 text-right tabular-nums">{fmtInt(r.qtd)}</td>
               <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(r.total)}</td>
               <td className="py-2 px-2 text-right tabular-nums">{fmtInt(r.qtdPago)}</td>
               <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(r.pago)}</td>
+              <td className="py-2 px-2 text-right tabular-nums">
+                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${badgeCls}`}>
+                  {conv.toFixed(1)}%
+                </span>
+              </td>
               <td className="py-2 pl-2 text-right font-medium tabular-nums text-primary">
                 {fmtBRL(r.pago * 0.02)}
               </td>
             </tr>
-          ))}
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function ConvenioTable({
+  rows,
+}: {
+  rows: { convenio: string; total: number; pago: number; qtd: number; qtdPago: number }[];
+}) {
+  return (
+    <div className="max-h-80 overflow-auto">
+      <table className="w-full text-sm">
+        <thead className="sticky top-0 bg-card text-xs uppercase tracking-wider text-muted-foreground">
+          <tr>
+            <th className="py-2 pr-2 text-left font-medium">Convênio</th>
+            <th className="py-2 px-2 text-right font-medium">Orç.</th>
+            <th className="py-2 px-2 text-right font-medium">Ticket (pago)</th>
+            <th className="py-2 px-2 text-right font-medium">Valor pago</th>
+            <th className="py-2 pl-2 text-right font-medium">Conv. %</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => {
+            const ticket = r.qtdPago ? r.pago / r.qtdPago : 0;
+            const conv = r.qtd ? (r.qtdPago / r.qtd) * 100 : 0;
+            const badgeCls =
+              conv >= 50
+                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                : conv >= 25
+                ? "bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                : "bg-destructive/10 text-destructive";
+            return (
+              <tr key={r.convenio} className="border-t border-border">
+                <td className="py-2 pr-2 text-foreground">{r.convenio}</td>
+                <td className="py-2 px-2 text-right tabular-nums">{fmtInt(r.qtd)}</td>
+                <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(ticket)}</td>
+                <td className="py-2 px-2 text-right font-medium tabular-nums">{fmtBRL(r.pago)}</td>
+                <td className="py-2 pl-2 text-right tabular-nums">
+                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${badgeCls}`}>
+                    {conv.toFixed(1)}%
+                  </span>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
