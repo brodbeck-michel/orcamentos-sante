@@ -519,7 +519,11 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
         {/* By convenio donut */}
         <Section
           title="Distribuição por convênio"
-          subtitle="Participação no valor pago"
+          subtitle={
+            concentracao.top2.length >= 2 && concentracao.pct > 0
+              ? `${concentracao.pct.toFixed(0)}% concentrado em ${concentracao.top2.map((c) => c.convenio).join(" e ")}`
+              : "Participação no valor pago"
+          }
           info="Participação de cada convênio no valor_pago total. Mostra de onde vem o faturamento efetivamente recebido."
         >
           <div className="grid h-80 grid-cols-1 sm:grid-cols-2">
