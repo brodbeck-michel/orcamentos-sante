@@ -292,3 +292,46 @@ function ConferenciaPage() {
     </div>
   );
 }
+
+type SortKey =
+  | "orcamento"
+  | "data"
+  | "paciente"
+  | "convenio1"
+  | "requisicao"
+  | "usuario"
+  | "vlTotal1"
+  | "valorPago";
+
+function SortableTh({
+  label,
+  k,
+  sortKey,
+  sortDir,
+  onClick,
+  align = "left",
+}: {
+  label: string;
+  k: SortKey;
+  sortKey: SortKey | null;
+  sortDir: "asc" | "desc";
+  onClick: (k: SortKey) => void;
+  align?: "left" | "right";
+}) {
+  const active = sortKey === k;
+  const Icon = active ? (sortDir === "desc" ? ArrowDown : ArrowUp) : ArrowUpDown;
+  return (
+    <th className={`px-3 py-3 ${align === "right" ? "text-right" : "text-left"}`}>
+      <button
+        type="button"
+        onClick={() => onClick(k)}
+        className={`inline-flex items-center gap-1 uppercase tracking-wider hover:text-foreground transition ${
+          active ? "text-foreground" : ""
+        }`}
+      >
+        {label}
+        <Icon className="h-3 w-3" />
+      </button>
+    </th>
+  );
+}
