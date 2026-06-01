@@ -452,7 +452,7 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
                 <XAxis type="number" stroke="var(--muted-foreground)" fontSize={12} tickFormatter={(v) => fmtBRL(v)} />
                 <YAxis dataKey="usuario" type="category" stroke="var(--muted-foreground)" fontSize={12} width={110} />
                 <Tooltip content={<ChartTooltip />} />
-                <Bar dataKey="pago" name="Valor pago" radius={[0, 6, 6, 0]} fill="var(--primary)" />
+                <Bar dataKey="pago" name="Recebido" radius={[0, 6, 6, 0]} fill="var(--primary)" />
               </BarChart>
             </ResponsiveContainer>
           </div>
