@@ -44,7 +44,7 @@ function Index() {
               <h1 className="text-base font-semibold tracking-tight text-foreground">
                 Laboratório Santé
               </h1>
-              <p className="text-xs text-muted-foreground">Painel de Orçamentos</p>
+              <p className="text-xs text-muted-foreground">Plataforma de Gestão Comercial de Orçamentos</p>
             </div>
           </div>
           <div className="flex items-center gap-2">

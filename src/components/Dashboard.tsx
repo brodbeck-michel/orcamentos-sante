@@ -373,7 +373,7 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
           icon={<Wallet className="h-5 w-5" />}
           label="Total orçado"
           value={fmtBRL(kpis.total)}
-          hint={`${fmtInt(kpis.totalCount)} orçamentos · ticket ${fmtBRL(kpis.ticketMedio)} · conv. ${kpis.conversaoQtd.toFixed(1)}%`}
+          hint={`${fmtInt(kpis.totalCount)} orçamentos`}
           accent
           delta={mom ? mom.delta : null}
           info="Soma do valor total (vl_total1) de todos os orçamentos no período/convênio filtrado, independentemente de terem virado requisição ou pagamento."
@@ -775,6 +775,7 @@ function UserTable({
             <th className="py-2 px-2 text-right font-medium">Total</th>
             <th className="py-2 px-2 text-right font-medium">Pagos</th>
             <th className="py-2 px-2 text-right font-medium">Valor pago</th>
+            <th className="py-2 px-2 text-right font-medium">Ticket médio</th>
             <th className="py-2 px-2 text-right font-medium">Conv. %</th>
             <th className="py-2 pl-2 text-right font-medium">Comissão (2%)</th>
           </tr>
@@ -795,6 +796,7 @@ function UserTable({
               <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(r.total)}</td>
               <td className="py-2 px-2 text-right tabular-nums">{fmtInt(r.qtdPago)}</td>
               <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(r.pago)}</td>
+              <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(r.qtdPago ? r.pago / r.qtdPago : 0)}</td>
               <td className="py-2 px-2 text-right tabular-nums">
                 <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${badgeCls}`}>
                   {conv.toFixed(1)}%
