@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Toaster } from "sonner";
-import { Activity, LogOut, Users, LayoutDashboard, ClipboardList, Search } from "lucide-react";
+import { Activity, LogOut, Users, LayoutDashboard, ClipboardList, ArrowUpDown, ArrowDown, ArrowUp } from "lucide-react";
 import { loadOrcamentos, OrcamentoRow, fmtBRLFull } from "@/lib/orcamento";
 import { signOut, useAuth } from "@/lib/auth";
 
@@ -37,8 +37,29 @@ function ConferenciaPage() {
     return `${last.getFullYear()}-${String(last.getMonth() + 1).padStart(2, "0")}-${String(last.getDate()).padStart(2, "0")}`;
   });
   const [usuarioFilter, setUsuarioFilter] = useState<string>("all");
-  const [convenioFilter, setConvenioFilter] = useState<string>("all");
-  const [search, setSearch] = useState<string>("");
+  const [reqFilter, setReqFilter] = useState<"all" | "com" | "sem">("all");
+  type SortKey =
+    | "orcamento"
+    | "data"
+    | "paciente"
+    | "convenio1"
+    | "requisicao"
+    | "usuario"
+    | "vlTotal1"
+    | "valorPago";
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  const toggleSort = (k: SortKey) => {
+    if (sortKey !== k) {
+      setSortKey(k);
+      setSortDir("desc");
+    } else if (sortDir === "desc") {
+      setSortDir("asc");
+    } else {
+      setSortKey(null);
+    }
+  };
 
   const usuariosList = useMemo(() => {
     const set = new Set<string>();
@@ -46,33 +67,42 @@ function ConferenciaPage() {
     return [...set].sort();
   }, [rows]);
 
-  const conveniosList = useMemo(() => {
-    const set = new Set<string>();
-    rows.forEach((r) => {
-      if (r.convenio1) set.add(r.convenio1);
-    });
-    return [...set].sort();
-  }, [rows]);
-
   const filtered = useMemo(() => {
     const from = dateFrom ? new Date(dateFrom + "T00:00:00") : null;
     const to = dateTo ? new Date(dateTo + "T23:59:59") : null;
-    const q = search.trim().toLowerCase();
-    return rows.filter((r) => {
+    const result = rows.filter((r) => {
       if (from || to) {
         if (!r.data) return false;
         if (from && r.data < from) return false;
         if (to && r.data > to) return false;
       }
       if (usuarioFilter !== "all" && r.usuario !== usuarioFilter) return false;
-      if (convenioFilter !== "all" && r.convenio1 !== convenioFilter) return false;
-      if (q) {
-        const blob = `${r.orcamento} ${r.paciente ?? ""} ${r.requisicao ?? ""}`.toLowerCase();
-        if (!blob.includes(q)) return false;
-      }
+      if (reqFilter === "com" && !r.requisicao) return false;
+      if (reqFilter === "sem" && r.requisicao) return false;
       return true;
     });
-  }, [rows, dateFrom, dateTo, usuarioFilter, convenioFilter, search]);
+    if (sortKey) {
+      const dir = sortDir === "desc" ? -1 : 1;
+      result.sort((a, b) => {
+        let av: string | number = "";
+        let bv: string | number = "";
+        if (sortKey === "data") {
+          av = a.data ? a.data.getTime() : 0;
+          bv = b.data ? b.data.getTime() : 0;
+        } else if (sortKey === "vlTotal1" || sortKey === "valorPago") {
+          av = a[sortKey] as number;
+          bv = b[sortKey] as number;
+        } else {
+          av = ((a[sortKey] as string | null) ?? "").toString().toLowerCase();
+          bv = ((b[sortKey] as string | null) ?? "").toString().toLowerCase();
+        }
+        if (av < bv) return -1 * dir;
+        if (av > bv) return 1 * dir;
+        return 0;
+      });
+    }
+    return result;
+  }, [rows, dateFrom, dateTo, usuarioFilter, reqFilter, sortKey, sortDir]);
 
   const totals = useMemo(() => {
     return filtered.reduce(
@@ -155,7 +185,7 @@ function ConferenciaPage() {
           <>
             {/* Filtros */}
             <div className="rounded-xl border border-border bg-card p-4">
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                 <div>
                   <label className="text-xs text-muted-foreground">De</label>
                   <input
@@ -188,30 +218,16 @@ function ConferenciaPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs text-muted-foreground">Convênio</label>
+                  <label className="text-xs text-muted-foreground">Requisição</label>
                   <select
-                    value={convenioFilter}
-                    onChange={(e) => setConvenioFilter(e.target.value)}
+                    value={reqFilter}
+                    onChange={(e) => setReqFilter(e.target.value as "all" | "com" | "sem")}
                     className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
                   >
                     <option value="all">Todos</option>
-                    {conveniosList.map((c) => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
+                    <option value="com">Com requisição</option>
+                    <option value="sem">Sem requisição</option>
                   </select>
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground">Buscar</label>
-                  <div className="relative mt-1">
-                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <input
-                      type="text"
-                      placeholder="Orçamento, paciente, requisição"
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      className="w-full rounded-md border border-border bg-background pl-8 pr-3 py-2 text-sm"
-                    />
-                  </div>
                 </div>
               </div>
               <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm">
