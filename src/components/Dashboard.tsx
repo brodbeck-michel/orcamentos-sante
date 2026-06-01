@@ -774,7 +774,7 @@ function UserTable({
             <th className="py-2 px-2 text-right font-medium">Orç.</th>
             <th className="py-2 px-2 text-right font-medium">Total</th>
             <th className="py-2 px-2 text-right font-medium">Pagos</th>
-            <th className="py-2 px-2 text-right font-medium">Valor pago</th>
+            <th className="py-2 px-2 text-right font-medium">Recebido</th>
             <th className="py-2 px-2 text-right font-medium">Ticket médio</th>
             <th className="py-2 px-2 text-right font-medium">Conv. %</th>
             <th className="py-2 pl-2 text-right font-medium">Comissão (2%)</th>
@@ -826,8 +826,8 @@ function ConvenioTable({
           <tr>
             <th className="py-2 pr-2 text-left font-medium">Convênio</th>
             <th className="py-2 px-2 text-right font-medium">Orç.</th>
-            <th className="py-2 px-2 text-right font-medium">Ticket (pago)</th>
-            <th className="py-2 px-2 text-right font-medium">Valor pago</th>
+            <th className="py-2 px-2 text-right font-medium">Ticket (recebido)</th>
+            <th className="py-2 px-2 text-right font-medium">Recebido</th>
             <th className="py-2 pl-2 text-right font-medium">Conv. %</th>
           </tr>
         </thead>
