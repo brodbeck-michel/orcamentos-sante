@@ -251,14 +251,14 @@ function ConferenciaPage() {
                 <table className="w-full text-sm">
                   <thead className="bg-muted/50 text-xs uppercase tracking-wider text-muted-foreground">
                     <tr>
-                      <th className="px-3 py-3 text-left">Orçamento</th>
-                      <th className="px-3 py-3 text-left">Data</th>
-                      <th className="px-3 py-3 text-left">Paciente</th>
-                      <th className="px-3 py-3 text-left">Convênio</th>
-                      <th className="px-3 py-3 text-left">Requisição</th>
-                      <th className="px-3 py-3 text-left">Usuário</th>
-                      <th className="px-3 py-3 text-right">Vl. Orçamento</th>
-                      <th className="px-3 py-3 text-right">Vl. Recebido</th>
+                      <SortableTh label="Orçamento" k="orcamento" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+                      <SortableTh label="Data" k="data" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+                      <SortableTh label="Paciente" k="paciente" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+                      <SortableTh label="Convênio" k="convenio1" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+                      <SortableTh label="Requisição" k="requisicao" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+                      <SortableTh label="Usuário" k="usuario" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+                      <SortableTh label="Vl. Orçamento" k="vlTotal1" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="right" />
+                      <SortableTh label="Vl. Recebido" k="valorPago" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="right" />
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
