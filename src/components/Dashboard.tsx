@@ -405,8 +405,8 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
       {/* Trend area */}
       <Section
         title="Evolução do faturamento"
-        subtitle="Total orçado, em requisição e pago, por mês"
-        info="Linha do tempo mensal comparando Total orçado, Requisição (convertidos em venda) e Pago (efetivamente recebido). Use para acompanhar tendência e conversão ao longo dos meses."
+        subtitle="Total orçado, em requisição e recebido, por mês"
+        info="Linha do tempo mensal comparando Total orçado, Requisição (convertidos em venda) e Recebido (efetivamente pago). Use para acompanhar tendência e conversão ao longo dos meses."
       >
         <div className="h-80">
           <ResponsiveContainer>
@@ -432,7 +432,7 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
               <Legend wrapperStyle={{ fontSize: 12 }} />
               <Area type="monotone" dataKey="total" name="Total orçado" stroke="var(--primary)" strokeWidth={2.5} fill="url(#g1)" />
               <Area type="monotone" dataKey="requisicao" name="Requisição" stroke="var(--chart-2)" strokeWidth={2.5} fill="url(#g2)" />
-              <Area type="monotone" dataKey="pago" name="Pago" stroke="var(--chart-3)" strokeWidth={2.5} fill="url(#g3)" />
+              <Area type="monotone" dataKey="pago" name="Recebido" stroke="var(--chart-3)" strokeWidth={2.5} fill="url(#g3)" />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -442,7 +442,7 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
         {/* By user bar */}
         <Section
           title="Faturamento por atendente"
-          subtitle="Ranking por valor pago"
+          subtitle="Ranking por valor recebido"
           info="Ranking dos atendentes pelo valor_pago (dinheiro recebido) dos orçamentos que cada um registrou no período filtrado."
         >
           <div className="h-80">
@@ -511,7 +511,7 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
       {/* Stacked user × month */}
       <Section
         title="Comparativo de atendentes ao longo do tempo"
-        subtitle="Top 5 atendentes por valor pago, por mês"
+        subtitle="Top 5 atendentes por valor recebido, por mês"
         info="Evolução mensal dos 5 atendentes com maior valor_pago acumulado. Útil para identificar sazonalidade, crescimento ou queda individual."
       >
         <div className="h-80">
