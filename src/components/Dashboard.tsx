@@ -247,7 +247,7 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
     if (kpis.ticketMedio > 0) {
       list.push({
         icon: "target",
-        text: <>Ticket médio geral: <strong className="text-foreground">{fmtBRLFull(kpis.ticketMedio)}</strong> por orçamento.</>,
+        text: <>Ticket médio geral: <strong className="text-foreground">{fmtBRLFull(kpis.ticketMedio)}</strong> recebido.</>,
       });
     }
     if (concentracao.top2.length >= 2 && concentracao.pct > 0) {
