@@ -129,7 +129,7 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
     const scopeTotal = filtered.reduce((s, r) => s + r.total, 0);
     const avg = count ? scopeTotal / count : 0;
     const usuarios = new Set(filtered.map((r) => r.usuario)).size;
-    const ticketMedio = totalCount ? total / totalCount : 0;
+    const ticketMedio = pagoCount ? pagoValue / pagoCount : 0;
     const conversaoQtd = totalCount ? (pagoCount / totalCount) * 100 : 0;
     const participacaoPago = total ? (pagoValue / total) * 100 : 0;
     return {
@@ -247,7 +247,7 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
     if (kpis.ticketMedio > 0) {
       list.push({
         icon: "target",
-        text: <>Ticket médio geral: <strong className="text-foreground">{fmtBRLFull(kpis.ticketMedio)}</strong> por orçamento.</>,
+        text: <>Ticket médio geral: <strong className="text-foreground">{fmtBRLFull(kpis.ticketMedio)}</strong> recebido.</>,
       });
     }
     if (concentracao.top2.length >= 2 && concentracao.pct > 0) {
