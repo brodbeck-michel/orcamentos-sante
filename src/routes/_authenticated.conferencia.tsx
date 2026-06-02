@@ -29,16 +29,33 @@ function ConferenciaPage() {
   const rows = data?.rows ?? [];
 
   const [dateFrom, setDateFrom] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      const saved = window.sessionStorage.getItem("periodo.from");
+      if (saved) return saved;
+    }
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
   });
   const [dateTo, setDateTo] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      const saved = window.sessionStorage.getItem("periodo.to");
+      if (saved) return saved;
+    }
     const d = new Date();
     const last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
     return `${last.getFullYear()}-${String(last.getMonth() + 1).padStart(2, "0")}-${String(last.getDate()).padStart(2, "0")}`;
   });
   const [usuarioFilter, setUsuarioFilter] = useState<string>("all");
   const [reqFilter, setReqFilter] = useState<"all" | "com" | "sem">("all");
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.sessionStorage.setItem("periodo.from", dateFrom);
+  }, [dateFrom]);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.sessionStorage.setItem("periodo.to", dateTo);
+  }, [dateTo]);
   type SortKey =
     | "orcamento"
     | "data"
