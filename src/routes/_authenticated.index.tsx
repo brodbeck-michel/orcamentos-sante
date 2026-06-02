@@ -1,11 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Toaster } from "sonner";
-import { Activity, Trash2, LogOut, Users, ClipboardList } from "lucide-react";
+import { Trash2, LogOut, Users, ClipboardList } from "lucide-react";
 import { UploadDropzone } from "@/components/UploadDropzone";
 import { Dashboard } from "@/components/Dashboard";
 import { clearOrcamentos, loadOrcamentos, OrcamentoRow } from "@/lib/orcamento";
 import { signOut, useAuth } from "@/lib/auth";
+import logoSante from "@/assets/logo-sante.png.asset.json";
 
 export const Route = createFileRoute("/_authenticated/")({
   head: () => ({
@@ -34,12 +35,11 @@ function Index() {
       <header className="border-b border-border bg-card/70 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-4">
           <div className="flex items-center gap-3">
-            <div
-              className="flex h-10 w-10 items-center justify-center rounded-lg text-primary-foreground"
-              style={{ background: "var(--gradient-primary)" }}
-            >
-              <Activity className="h-5 w-5" />
-            </div>
+            <img
+              src={logoSante.url}
+              alt="Laboratório Santé"
+              className="h-11 w-11 rounded-lg object-cover"
+            />
             <div>
               <h1 className="text-base font-semibold tracking-tight text-foreground">
                 Laboratório Santé
