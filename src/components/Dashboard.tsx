@@ -36,6 +36,7 @@ import {
   AlertTriangle,
   Trophy,
   Target,
+  Percent,
 } from "lucide-react";
 
 const CHART_COLORS = [
@@ -83,6 +84,21 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
     return `${last.getFullYear()}-${String(last.getMonth() + 1).padStart(2, "0")}-${String(last.getDate()).padStart(2, "0")}`;
   });
   const [convenioFilter, setConvenioFilter] = useState<string>("all");
+
+  const [comissaoPct, setComissaoPct] = useState<number>(() => {
+    if (typeof window !== "undefined") {
+      const saved = window.localStorage.getItem("comissao.pct");
+      const n = saved !== null ? parseFloat(saved) : NaN;
+      if (!isNaN(n) && n >= 0) return n;
+    }
+    return 2;
+  });
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem("comissao.pct", String(comissaoPct));
+  }, [comissaoPct]);
+  const [editComissao, setEditComissao] = useState(false);
+  const [comissaoInput, setComissaoInput] = useState<string>(String(comissaoPct));
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -560,9 +576,63 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
         <Section
           title="Detalhe por atendente"
           subtitle={`${byUser.length} pessoas`}
-          info="Tabela por atendente com quantidade de orçamentos, total orçado, quantidade de pagos, valor pago e comissão calculada em 2% do valor pago."
+          info={`Tabela por atendente com quantidade de orçamentos, total orçado, quantidade de pagos, valor pago e comissão calculada em ${comissaoPct}% do valor recebido.`}
+          headerRight={
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => {
+                  setComissaoInput(String(comissaoPct));
+                  setEditComissao((v) => !v);
+                }}
+                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition hover:bg-accent"
+                title="Definir % de comissão"
+              >
+                <Percent className="h-3.5 w-3.5" />
+                Comissão: {comissaoPct}%
+              </button>
+              {editComissao && (
+                <div className="absolute right-0 top-full z-10 mt-2 w-56 rounded-md border border-border bg-popover p-3 shadow-md">
+                  <label className="text-xs font-medium text-muted-foreground">% de comissão</label>
+                  <div className="mt-1 flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={0}
+                      step={0.1}
+                      value={comissaoInput}
+                      onChange={(e) => setComissaoInput(e.target.value)}
+                      className="w-full rounded-md border border-input bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                      autoFocus
+                    />
+                    <span className="text-sm text-muted-foreground">%</span>
+                  </div>
+                  <div className="mt-3 flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setEditComissao(false)}
+                      className="rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-accent"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const n = parseFloat(comissaoInput.replace(",", "."));
+                        if (!isNaN(n) && n >= 0) setComissaoPct(n);
+                        else setComissaoPct(2);
+                        setEditComissao(false);
+                      }}
+                      className="rounded-md bg-primary px-2 py-1 text-xs font-medium text-primary-foreground hover:opacity-90"
+                    >
+                      Salvar
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          }
         >
-          <UserTable rows={byUser} />
+          <UserTable rows={byUser} comissaoPct={comissaoPct} />
         </Section>
         <Section
           title="Detalhe por convênio"
@@ -637,15 +707,18 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
   );
 }
 
-function Section({ title, subtitle, info, children }: { title: string; subtitle?: string; info?: string; children: React.ReactNode }) {
+function Section({ title, subtitle, info, headerRight, children }: { title: string; subtitle?: string; info?: string; headerRight?: React.ReactNode; children: React.ReactNode }) {
   return (
     <section className="rounded-xl border border-border bg-card p-5" style={{ boxShadow: "var(--shadow-card)" }}>
-      <header className="mb-4">
-        <div className="flex items-center gap-2">
-          <h3 className="text-base font-semibold text-foreground">{title}</h3>
-          {info && <InfoTip text={info} />}
+      <header className="mb-4 flex items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <h3 className="text-base font-semibold text-foreground">{title}</h3>
+            {info && <InfoTip text={info} />}
+          </div>
+          {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
         </div>
-        {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
+        {headerRight && <div className="shrink-0">{headerRight}</div>}
       </header>
       {children}
     </section>
@@ -779,8 +852,10 @@ function RankTable({
 
 function UserTable({
   rows,
+  comissaoPct,
 }: {
   rows: { usuario: string; total: number; qtd: number; pago: number; qtdPago: number }[];
+  comissaoPct: number;
 }) {
   return (
     <div className="max-h-80 overflow-auto">
@@ -794,7 +869,7 @@ function UserTable({
             <th className="py-2 px-2 text-right font-medium">Recebido</th>
             <th className="py-2 px-2 text-right font-medium">Ticket médio</th>
             <th className="py-2 px-2 text-right font-medium">Conv. %</th>
-            <th className="py-2 pl-2 text-right font-medium">Comissão (2%)</th>
+            <th className="py-2 pl-2 text-right font-medium">Comissão ({comissaoPct}%)</th>
           </tr>
         </thead>
         <tbody>
@@ -820,7 +895,7 @@ function UserTable({
                 </span>
               </td>
               <td className="py-2 pl-2 text-right font-medium tabular-nums text-primary">
-                {fmtBRL(r.pago * 0.02)}
+                {fmtBRL(r.pago * (comissaoPct / 100))}
               </td>
             </tr>
             );
