@@ -431,8 +431,8 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
           value={fmtBRL(kpis.total)}
           hint={`${fmtInt(kpis.totalCount)} orçamentos`}
           accent
-          delta={mom ? mom.delta : null}
-          info="Soma do valor total (vl_total1) de todos os orçamentos no período/convênio filtrado, independentemente de terem virado requisição ou pagamento."
+          delta={prevPeriodDelta}
+          info="Soma do valor total (vl_total1) de todos os orçamentos no período/convênio filtrado. A variação % compara com o período imediatamente anterior de mesma duração."
         />
         <KpiCard
           icon={<Receipt className="h-5 w-5" />}
