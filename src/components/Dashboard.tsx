@@ -85,6 +85,21 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
   });
   const [convenioFilter, setConvenioFilter] = useState<string>("all");
 
+  const [comissaoPct, setComissaoPct] = useState<number>(() => {
+    if (typeof window !== "undefined") {
+      const saved = window.localStorage.getItem("comissao.pct");
+      const n = saved !== null ? parseFloat(saved) : NaN;
+      if (!isNaN(n) && n >= 0) return n;
+    }
+    return 2;
+  });
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem("comissao.pct", String(comissaoPct));
+  }, [comissaoPct]);
+  const [editComissao, setEditComissao] = useState(false);
+  const [comissaoInput, setComissaoInput] = useState<string>(String(comissaoPct));
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     window.sessionStorage.setItem("periodo.from", dateFrom);
