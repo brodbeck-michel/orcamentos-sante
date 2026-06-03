@@ -19,6 +19,7 @@ export type OrcamentoRow = {
   valorRequisicao: number;
   valorPago: number;
   pago: boolean;
+  dataPagamento: Date | null;
 };
 
 const toNum = (v: unknown): number => {
@@ -75,6 +76,13 @@ export async function parseOrcamentoFile(file: File): Promise<OrcamentoRow[]> {
         null;
       const valorRequisicao = toNum(r["VALOR_REQUISICAO"]);
       const valorPago = toNum(r["Valor_Pago"] ?? r["VALOR_PAGO"] ?? r["valor_pago"]);
+      const dataPagamento = excelDate(
+        r["DATA_PAGAMENTO"] ??
+          r["Data_Pagamento"] ??
+          r["data_pagamento"] ??
+          r["DT_PAGAMENTO"] ??
+          r["DATA PAGAMENTO"]
+      );
       return {
         orcamento: String(r["ORCAMENTO"] ?? ""),
         data: excelDate(r["DATA_ORÇAMENTO"]),
@@ -94,6 +102,7 @@ export async function parseOrcamentoFile(file: File): Promise<OrcamentoRow[]> {
         valorRequisicao,
         valorPago,
         pago: valorPago > 0,
+        dataPagamento,
       } as OrcamentoRow;
     })
     .filter((r) => r.orcamento);
@@ -124,6 +133,10 @@ export function loadOrcamentos(): { rows: OrcamentoRow[]; fileName: string; impo
         valorRequisicao: typeof r.valorRequisicao === "number" ? r.valorRequisicao : 0,
         valorPago: typeof r.valorPago === "number" ? r.valorPago : 0,
         pago: typeof r.pago === "boolean" ? r.pago : false,
+        dataPagamento:
+          (r as unknown as { dataPagamento?: string | null }).dataPagamento
+            ? new Date((r as unknown as { dataPagamento: string }).dataPagamento)
+            : null,
       })),
     };
   } catch {
