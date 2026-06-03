@@ -131,6 +131,22 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
 
   const filtered = baseFiltered;
 
+  // Rows whose PAYMENT date falls in the selected period (and convenio).
+  // Used for any "recebido/valor pago" aggregation so the period reflects
+  // when money was actually received, not when the budget was created.
+  const pagosFiltered = useMemo(() => {
+    const from = dateFrom ? new Date(dateFrom + "T00:00:00") : null;
+    const to = dateTo ? new Date(dateTo + "T23:59:59") : null;
+    return rows.filter((r) => {
+      if (!r.pago) return false;
+      if (!r.dataPagamento) return false;
+      if (from && r.dataPagamento < from) return false;
+      if (to && r.dataPagamento > to) return false;
+      if (convenioFilter !== "all" && r.convenioPrincipal !== convenioFilter) return false;
+      return true;
+    });
+  }, [rows, dateFrom, dateTo, convenioFilter]);
+
   // Previous-period delta for "Total orçado": compare with the immediately
   // preceding window of the same length (using the same convenio filter).
   const prevPeriodDelta = useMemo(() => {
@@ -160,8 +176,8 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
     const totalCount = baseFiltered.length;
     const reqValue = baseFiltered.reduce((s, r) => s + r.valorRequisicao, 0);
     const reqCount = baseFiltered.reduce((s, r) => (r.convertido ? s + 1 : s), 0);
-    const pagoValue = baseFiltered.reduce((s, r) => s + r.valorPago, 0);
-    const pagoCount = baseFiltered.reduce((s, r) => (r.pago ? s + 1 : s), 0);
+    const pagoValue = pagosFiltered.reduce((s, r) => s + r.valorPago, 0);
+    const pagoCount = pagosFiltered.length;
     const taxaReq = total ? (reqValue / total) * 100 : 0;
     const taxaPago = total ? (pagoValue / total) * 100 : 0;
     const count = filtered.length;
@@ -178,20 +194,26 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
       count, avg, usuarios, scopeTotal,
       ticketMedio, conversaoQtd, participacaoPago,
     };
-  }, [baseFiltered, filtered]);
+  }, [baseFiltered, filtered, pagosFiltered]);
 
   // Monthly trend
   const monthly = useMemo(() => {
     const map = new Map<string, { mes: string; total: number; requisicao: number; pago: number; qtd: number }>();
     rows.forEach((r) => {
-      if (!r.data) return;
-      const k = monthKey(r.data);
-      const e = map.get(k) ?? { mes: k, total: 0, requisicao: 0, pago: 0, qtd: 0 };
-      e.total += r.total;
-      e.requisicao += r.valorRequisicao;
-      e.pago += r.valorPago;
-      e.qtd += 1;
-      map.set(k, e);
+      if (r.data) {
+        const k = monthKey(r.data);
+        const e = map.get(k) ?? { mes: k, total: 0, requisicao: 0, pago: 0, qtd: 0 };
+        e.total += r.total;
+        e.requisicao += r.valorRequisicao;
+        e.qtd += 1;
+        map.set(k, e);
+      }
+      if (r.dataPagamento && r.valorPago > 0) {
+        const kp = monthKey(r.dataPagamento);
+        const ep = map.get(kp) ?? { mes: kp, total: 0, requisicao: 0, pago: 0, qtd: 0 };
+        ep.pago += r.valorPago;
+        map.set(kp, ep);
+      }
     });
     return [...map.values()]
       .sort((a, b) => a.mes.localeCompare(b.mes))
@@ -214,12 +236,16 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
       const e = map.get(r.usuario) ?? { usuario: r.usuario, total: 0, qtd: 0, pago: 0, qtdPago: 0 };
       e.total += r.total;
       e.qtd += 1;
+      map.set(r.usuario, e);
+    });
+    pagosFiltered.forEach((r) => {
+      const e = map.get(r.usuario) ?? { usuario: r.usuario, total: 0, qtd: 0, pago: 0, qtdPago: 0 };
       e.pago += r.valorPago;
-      if (r.pago) e.qtdPago += 1;
+      e.qtdPago += 1;
       map.set(r.usuario, e);
     });
     return [...map.values()].sort((a, b) => b.pago - a.pago);
-  }, [filtered]);
+  }, [filtered, pagosFiltered]);
 
   // By convenio
   const byConvenio = useMemo(() => {
@@ -233,13 +259,23 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
         qtdPago: 0,
       };
       e.total += r.total;
-      e.pago += r.valorPago;
       e.qtd += 1;
-      if (r.pago) e.qtdPago += 1;
+      map.set(r.convenioPrincipal, e);
+    });
+    pagosFiltered.forEach((r) => {
+      const e = map.get(r.convenioPrincipal) ?? {
+        convenio: r.convenioPrincipal,
+        total: 0,
+        pago: 0,
+        qtd: 0,
+        qtdPago: 0,
+      };
+      e.pago += r.valorPago;
+      e.qtdPago += 1;
       map.set(r.convenioPrincipal, e);
     });
     return [...map.values()].sort((a, b) => b.pago - a.pago);
-  }, [filtered]);
+  }, [filtered, pagosFiltered]);
 
   const topConvenios = byConvenio.slice(0, 6);
   const outrosPago = byConvenio.slice(6).reduce((s, c) => s + c.pago, 0);
@@ -358,7 +394,7 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
       const row: Record<string, number | string> = { label: monthLabel(m) };
       topUsers.forEach((u) => (row[u] = 0));
       rows.forEach((r) => {
-        if (!r.data || monthKey(r.data) !== m) return;
+        if (!r.dataPagamento || monthKey(r.dataPagamento) !== m) return;
         if (topUsers.includes(r.usuario))
           row[r.usuario] = (row[r.usuario] as number) + r.valorPago;
       });
