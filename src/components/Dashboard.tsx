@@ -131,6 +131,29 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
 
   const filtered = baseFiltered;
 
+  // Previous-period delta for "Total orçado": compare with the immediately
+  // preceding window of the same length (using the same convenio filter).
+  const prevPeriodDelta = useMemo(() => {
+    if (!dateFrom || !dateTo) return null;
+    const from = new Date(dateFrom + "T00:00:00");
+    const to = new Date(dateTo + "T23:59:59");
+    if (isNaN(from.getTime()) || isNaN(to.getTime()) || from > to) return null;
+    const spanMs = to.getTime() - from.getTime();
+    const prevTo = new Date(from.getTime() - 1);
+    const prevFrom = new Date(prevTo.getTime() - spanMs);
+    let curTotal = 0;
+    let prevTotal = 0;
+    rows.forEach((r) => {
+      if (!r.data) return;
+      if (convenioFilter !== "all" && r.convenioPrincipal !== convenioFilter) return;
+      const t = r.data.getTime();
+      if (t >= from.getTime() && t <= to.getTime()) curTotal += r.total;
+      else if (t >= prevFrom.getTime() && t <= prevTo.getTime()) prevTotal += r.total;
+    });
+    if (prevTotal === 0) return null;
+    return ((curTotal - prevTotal) / prevTotal) * 100;
+  }, [rows, dateFrom, dateTo, convenioFilter]);
+
   // KPIs (base totals ignore scope so both numbers are always visible)
   const kpis = useMemo(() => {
     const total = baseFiltered.reduce((s, r) => s + r.total, 0);
@@ -408,8 +431,8 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
           value={fmtBRL(kpis.total)}
           hint={`${fmtInt(kpis.totalCount)} orçamentos`}
           accent
-          delta={mom ? mom.delta : null}
-          info="Soma do valor total (vl_total1) de todos os orçamentos no período/convênio filtrado, independentemente de terem virado requisição ou pagamento."
+          delta={prevPeriodDelta}
+          info="Soma do valor total (vl_total1) de todos os orçamentos no período/convênio filtrado. A variação % compara com o período imediatamente anterior de mesma duração."
         />
         <KpiCard
           icon={<Receipt className="h-5 w-5" />}
