@@ -707,15 +707,18 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
   );
 }
 
-function Section({ title, subtitle, info, children }: { title: string; subtitle?: string; info?: string; children: React.ReactNode }) {
+function Section({ title, subtitle, info, headerRight, children }: { title: string; subtitle?: string; info?: string; headerRight?: React.ReactNode; children: React.ReactNode }) {
   return (
     <section className="rounded-xl border border-border bg-card p-5" style={{ boxShadow: "var(--shadow-card)" }}>
-      <header className="mb-4">
-        <div className="flex items-center gap-2">
-          <h3 className="text-base font-semibold text-foreground">{title}</h3>
-          {info && <InfoTip text={info} />}
+      <header className="mb-4 flex items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <h3 className="text-base font-semibold text-foreground">{title}</h3>
+            {info && <InfoTip text={info} />}
+          </div>
+          {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
         </div>
-        {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
+        {headerRight && <div className="shrink-0">{headerRight}</div>}
       </header>
       {children}
     </section>
