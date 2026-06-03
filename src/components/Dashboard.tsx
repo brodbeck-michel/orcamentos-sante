@@ -852,8 +852,10 @@ function RankTable({
 
 function UserTable({
   rows,
+  comissaoPct,
 }: {
   rows: { usuario: string; total: number; qtd: number; pago: number; qtdPago: number }[];
+  comissaoPct: number;
 }) {
   return (
     <div className="max-h-80 overflow-auto">
@@ -867,7 +869,7 @@ function UserTable({
             <th className="py-2 px-2 text-right font-medium">Recebido</th>
             <th className="py-2 px-2 text-right font-medium">Ticket médio</th>
             <th className="py-2 px-2 text-right font-medium">Conv. %</th>
-            <th className="py-2 pl-2 text-right font-medium">Comissão (2%)</th>
+            <th className="py-2 pl-2 text-right font-medium">Comissão ({comissaoPct}%)</th>
           </tr>
         </thead>
         <tbody>
@@ -893,7 +895,7 @@ function UserTable({
                 </span>
               </td>
               <td className="py-2 pl-2 text-right font-medium tabular-nums text-primary">
-                {fmtBRL(r.pago * 0.02)}
+                {fmtBRL(r.pago * (comissaoPct / 100))}
               </td>
             </tr>
             );
