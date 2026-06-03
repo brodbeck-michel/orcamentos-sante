@@ -576,9 +576,63 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
         <Section
           title="Detalhe por atendente"
           subtitle={`${byUser.length} pessoas`}
-          info="Tabela por atendente com quantidade de orçamentos, total orçado, quantidade de pagos, valor pago e comissão calculada em 2% do valor pago."
+          info={`Tabela por atendente com quantidade de orçamentos, total orçado, quantidade de pagos, valor pago e comissão calculada em ${comissaoPct}% do valor recebido.`}
+          headerRight={
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => {
+                  setComissaoInput(String(comissaoPct));
+                  setEditComissao((v) => !v);
+                }}
+                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition hover:bg-accent"
+                title="Definir % de comissão"
+              >
+                <Percent className="h-3.5 w-3.5" />
+                Comissão: {comissaoPct}%
+              </button>
+              {editComissao && (
+                <div className="absolute right-0 top-full z-10 mt-2 w-56 rounded-md border border-border bg-popover p-3 shadow-md">
+                  <label className="text-xs font-medium text-muted-foreground">% de comissão</label>
+                  <div className="mt-1 flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={0}
+                      step={0.1}
+                      value={comissaoInput}
+                      onChange={(e) => setComissaoInput(e.target.value)}
+                      className="w-full rounded-md border border-input bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                      autoFocus
+                    />
+                    <span className="text-sm text-muted-foreground">%</span>
+                  </div>
+                  <div className="mt-3 flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setEditComissao(false)}
+                      className="rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-accent"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const n = parseFloat(comissaoInput.replace(",", "."));
+                        if (!isNaN(n) && n >= 0) setComissaoPct(n);
+                        else setComissaoPct(2);
+                        setEditComissao(false);
+                      }}
+                      className="rounded-md bg-primary px-2 py-1 text-xs font-medium text-primary-foreground hover:opacity-90"
+                    >
+                      Salvar
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          }
         >
-          <UserTable rows={byUser} />
+          <UserTable rows={byUser} comissaoPct={comissaoPct} />
         </Section>
         <Section
           title="Detalhe por convênio"
