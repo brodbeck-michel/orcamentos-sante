@@ -36,6 +36,7 @@ import {
   AlertTriangle,
   Trophy,
   Target,
+  Percent,
 } from "lucide-react";
 
 const CHART_COLORS = [
