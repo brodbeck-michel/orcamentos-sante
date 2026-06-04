@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Toaster } from "sonner";
-import { LogOut, Users, LayoutDashboard, ClipboardList, ArrowUpDown, ArrowDown, ArrowUp } from "lucide-react";
+import { LogOut, Users, LayoutDashboard, ClipboardList, ArrowUpDown, ArrowDown, ArrowUp, ShoppingBag } from "lucide-react";
 import { loadOrcamentos, OrcamentoRow, fmtBRLFull } from "@/lib/orcamento";
 import { signOut, useAuth } from "@/lib/auth";
 import logoSante from "@/assets/logo-sante.png.asset.json";
@@ -161,6 +161,13 @@ function ConferenciaPage() {
             >
               <LayoutDashboard className="h-4 w-4" />
               Dashboard
+            </Link>
+            <Link
+              to="/vendas"
+              className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground transition hover:bg-accent"
+            >
+              <ShoppingBag className="h-4 w-4" />
+              Vendas
             </Link>
             {auth.isAdmin && (
               <Link
