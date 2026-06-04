@@ -59,6 +59,45 @@ export type Database = {
         }
         Relationships: []
       }
+      vendas: {
+        Row: {
+          atendente: string
+          codigo: string
+          created_at: string
+          created_by: string
+          data_venda: string
+          exames: string
+          id: string
+          tipo: string
+          updated_at: string
+          valor: number
+        }
+        Insert: {
+          atendente: string
+          codigo: string
+          created_at?: string
+          created_by?: string
+          data_venda: string
+          exames: string
+          id?: string
+          tipo: string
+          updated_at?: string
+          valor: number
+        }
+        Update: {
+          atendente?: string
+          codigo?: string
+          created_at?: string
+          created_by?: string
+          data_venda?: string
+          exames?: string
+          id?: string
+          tipo?: string
+          updated_at?: string
+          valor?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
