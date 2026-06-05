@@ -283,12 +283,13 @@ function ConferenciaPage() {
                       <SortableTh label="Usuário" k="usuario" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
                       <SortableTh label="Vl. Orçamento" k="vlTotal1" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="right" />
                       <SortableTh label="Vl. Recebido" k="valorPago" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="right" />
+                      <th className="px-3 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">Data Recebido</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
                     {filtered.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="px-3 py-8 text-center text-muted-foreground">
+                        <td colSpan={9} className="px-3 py-8 text-center text-muted-foreground">
                           Nenhum registro encontrado.
                         </td>
                       </tr>
@@ -303,6 +304,7 @@ function ConferenciaPage() {
                           <td className="px-3 py-2 text-foreground">{r.usuario}</td>
                           <td className="px-3 py-2 text-right text-foreground">{fmtBRLFull(r.vlTotal1)}</td>
                           <td className="px-3 py-2 text-right font-medium text-foreground">{fmtBRLFull(r.valorPago)}</td>
+                          <td className="px-3 py-2 text-foreground">{fmtDate(r.dataPagamento)}</td>
                         </tr>
                       ))
                     )}
