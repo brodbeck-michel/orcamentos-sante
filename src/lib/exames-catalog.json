@@ -1,0 +1,440 @@
+[
+  {
+    "codigo": "HEM001",
+    "nome": "Hemograma Completo",
+    "sinonimos": "Hemograma, CBC, Contagem Sanguínea Completa",
+    "categoria": "Hematologia"
+  },
+  {
+    "codigo": "BIO001",
+    "nome": "Glicemia de Jejum",
+    "sinonimos": "Glicose Jejum, Glicemia Basal",
+    "categoria": "Bioquímica"
+  },
+  {
+    "codigo": "BIO002",
+    "nome": "Hemoglobina Glicada",
+    "sinonimos": "HbA1c, A1C, Glico-Hemoglobina",
+    "categoria": "Bioquímica"
+  },
+  {
+    "codigo": "BIO003",
+    "nome": "Colesterol Total",
+    "sinonimos": "CT",
+    "categoria": "Bioquímica"
+  },
+  {
+    "codigo": "BIO004",
+    "nome": "HDL Colesterol",
+    "sinonimos": "HDL, Colesterol Bom",
+    "categoria": "Bioquímica"
+  },
+  {
+    "codigo": "BIO005",
+    "nome": "LDL Colesterol",
+    "sinonimos": "LDL, Colesterol Ruim",
+    "categoria": "Bioquímica"
+  },
+  {
+    "codigo": "BIO006",
+    "nome": "Triglicerídeos",
+    "sinonimos": "TG, Triglicérides",
+    "categoria": "Bioquímica"
+  },
+  {
+    "codigo": "BIO007",
+    "nome": "Creatinina",
+    "sinonimos": "Creat",
+    "categoria": "Bioquímica"
+  },
+  {
+    "codigo": "BIO008",
+    "nome": "Ureia",
+    "sinonimos": "Uréia",
+    "categoria": "Bioquímica"
+  },
+  {
+    "codigo": "BIO009",
+    "nome": "Ácido Úrico",
+    "sinonimos": "Acido Urico",
+    "categoria": "Bioquímica"
+  },
+  {
+    "codigo": "BIO010",
+    "nome": "TGO",
+    "sinonimos": "AST, Aspartato Aminotransferase",
+    "categoria": "Bioquímica"
+  },
+  {
+    "codigo": "BIO011",
+    "nome": "TGP",
+    "sinonimos": "ALT, Alanina Aminotransferase",
+    "categoria": "Bioquímica"
+  },
+  {
+    "codigo": "BIO012",
+    "nome": "Gama GT",
+    "sinonimos": "GGT, Gamma GT",
+    "categoria": "Bioquímica"
+  },
+  {
+    "codigo": "BIO013",
+    "nome": "Fosfatase Alcalina",
+    "sinonimos": "FA",
+    "categoria": "Bioquímica"
+  },
+  {
+    "codigo": "BIO014",
+    "nome": "Bilirrubina Total",
+    "sinonimos": "BT",
+    "categoria": "Bioquímica"
+  },
+  {
+    "codigo": "BIO015",
+    "nome": "Bilirrubina Direta",
+    "sinonimos": "BD",
+    "categoria": "Bioquímica"
+  },
+  {
+    "codigo": "BIO016",
+    "nome": "Bilirrubina Indireta",
+    "sinonimos": "BI",
+    "categoria": "Bioquímica"
+  },
+  {
+    "codigo": "BIO017",
+    "nome": "Proteína C Reativa",
+    "sinonimos": "PCR, CRP",
+    "categoria": "Imunologia"
+  },
+  {
+    "codigo": "BIO018",
+    "nome": "Ferritina",
+    "sinonimos": "Ferritina Sérica",
+    "categoria": "Bioquímica"
+  },
+  {
+    "codigo": "BIO019",
+    "nome": "Ferro Sérico",
+    "sinonimos": "Ferro",
+    "categoria": "Bioquímica"
+  },
+  {
+    "codigo": "BIO020",
+    "nome": "Vitamina D",
+    "sinonimos": "25-OH Vitamina D, Calcidiol",
+    "categoria": "Vitaminas"
+  },
+  {
+    "codigo": "BIO021",
+    "nome": "Vitamina B12",
+    "sinonimos": "Cobalamina",
+    "categoria": "Vitaminas"
+  },
+  {
+    "codigo": "BIO022",
+    "nome": "Ácido Fólico",
+    "sinonimos": "Folato",
+    "categoria": "Vitaminas"
+  },
+  {
+    "codigo": "HOR001",
+    "nome": "TSH",
+    "sinonimos": "Hormônio Tireoestimulante",
+    "categoria": "Hormônios"
+  },
+  {
+    "codigo": "HOR002",
+    "nome": "T4 Livre",
+    "sinonimos": "FT4, Tiroxina Livre",
+    "categoria": "Hormônios"
+  },
+  {
+    "codigo": "HOR003",
+    "nome": "T3 Livre",
+    "sinonimos": "FT3, Triiodotironina Livre",
+    "categoria": "Hormônios"
+  },
+  {
+    "codigo": "HOR004",
+    "nome": "Anti-TPO",
+    "sinonimos": "Anticorpo Anti Peroxidase",
+    "categoria": "Hormônios"
+  },
+  {
+    "codigo": "HOR005",
+    "nome": "Anti-Tireoglobulina",
+    "sinonimos": "Anti-Tg",
+    "categoria": "Hormônios"
+  },
+  {
+    "codigo": "HOR006",
+    "nome": "Insulina",
+    "sinonimos": "Insulina Basal",
+    "categoria": "Hormônios"
+  },
+  {
+    "codigo": "HOR007",
+    "nome": "Cortisol",
+    "sinonimos": "Cortisol Sérico",
+    "categoria": "Hormônios"
+  },
+  {
+    "codigo": "HOR008",
+    "nome": "ACTH",
+    "sinonimos": "Hormônio Adrenocorticotrófico",
+    "categoria": "Hormônios"
+  },
+  {
+    "codigo": "HOR009",
+    "nome": "Testosterona Total",
+    "sinonimos": "Testo Total",
+    "categoria": "Hormônios"
+  },
+  {
+    "codigo": "HOR010",
+    "nome": "Testosterona Livre",
+    "sinonimos": "Testo Livre",
+    "categoria": "Hormônios"
+  },
+  {
+    "codigo": "HOR011",
+    "nome": "Estradiol",
+    "sinonimos": "E2",
+    "categoria": "Hormônios"
+  },
+  {
+    "codigo": "HOR012",
+    "nome": "Progesterona",
+    "sinonimos": "Progesterona Sérica",
+    "categoria": "Hormônios"
+  },
+  {
+    "codigo": "HOR013",
+    "nome": "FSH",
+    "sinonimos": "Hormônio Folículo Estimulante",
+    "categoria": "Hormônios"
+  },
+  {
+    "codigo": "HOR014",
+    "nome": "LH",
+    "sinonimos": "Hormônio Luteinizante",
+    "categoria": "Hormônios"
+  },
+  {
+    "codigo": "HOR015",
+    "nome": "Prolactina",
+    "sinonimos": "PRL",
+    "categoria": "Hormônios"
+  },
+  {
+    "codigo": "HOR016",
+    "nome": "Beta HCG",
+    "sinonimos": "β-HCG, Teste de Gravidez",
+    "categoria": "Hormônios"
+  },
+  {
+    "codigo": "URI001",
+    "nome": "EAS",
+    "sinonimos": "Urina Tipo I, Sumário de Urina",
+    "categoria": "Urinálise"
+  },
+  {
+    "codigo": "URI002",
+    "nome": "Urocultura",
+    "sinonimos": "Cultura de Urina",
+    "categoria": "Microbiologia"
+  },
+  {
+    "codigo": "URI003",
+    "nome": "Microalbuminúria",
+    "sinonimos": "Albumina Urinária",
+    "categoria": "Urinálise"
+  },
+  {
+    "codigo": "URI004",
+    "nome": "Proteinúria 24h",
+    "sinonimos": "Proteína 24 Horas",
+    "categoria": "Urinálise"
+  },
+  {
+    "codigo": "URI005",
+    "nome": "Clearance de Creatinina",
+    "sinonimos": "Depuração de Creatinina",
+    "categoria": "Urinálise"
+  },
+  {
+    "codigo": "HEM002",
+    "nome": "Coagulograma",
+    "sinonimos": "Perfil de Coagulação",
+    "categoria": "Hematologia"
+  },
+  {
+    "codigo": "HEM003",
+    "nome": "TP",
+    "sinonimos": "Tempo de Protrombina",
+    "categoria": "Hematologia"
+  },
+  {
+    "codigo": "HEM004",
+    "nome": "INR",
+    "sinonimos": "Razão Normalizada Internacional",
+    "categoria": "Hematologia"
+  },
+  {
+    "codigo": "HEM005",
+    "nome": "TTPA",
+    "sinonimos": "Tempo de Tromboplastina Parcial Ativada",
+    "categoria": "Hematologia"
+  },
+  {
+    "codigo": "HEM006",
+    "nome": "D-Dímero",
+    "sinonimos": "Dímero D",
+    "categoria": "Hematologia"
+  },
+  {
+    "codigo": "HEM007",
+    "nome": "Fibrinogênio",
+    "sinonimos": "Fibrinogenio",
+    "categoria": "Hematologia"
+  },
+  {
+    "codigo": "IMU001",
+    "nome": "Fator Reumatoide",
+    "sinonimos": "FR",
+    "categoria": "Imunologia"
+  },
+  {
+    "codigo": "IMU002",
+    "nome": "FAN",
+    "sinonimos": "Fator Antinuclear",
+    "categoria": "Imunologia"
+  },
+  {
+    "codigo": "IMU003",
+    "nome": "ASLO",
+    "sinonimos": "Antiestreptolisina O",
+    "categoria": "Imunologia"
+  },
+  {
+    "codigo": "IMU004",
+    "nome": "C3",
+    "sinonimos": "Complemento C3",
+    "categoria": "Imunologia"
+  },
+  {
+    "codigo": "IMU005",
+    "nome": "C4",
+    "sinonimos": "Complemento C4",
+    "categoria": "Imunologia"
+  },
+  {
+    "codigo": "SOR001",
+    "nome": "HIV 1 e 2",
+    "sinonimos": "Anti-HIV",
+    "categoria": "Sorologia"
+  },
+  {
+    "codigo": "SOR002",
+    "nome": "VDRL",
+    "sinonimos": "Sífilis VDRL",
+    "categoria": "Sorologia"
+  },
+  {
+    "codigo": "SOR003",
+    "nome": "FTA-ABS",
+    "sinonimos": "Sífilis Confirmatório",
+    "categoria": "Sorologia"
+  },
+  {
+    "codigo": "SOR004",
+    "nome": "HBsAg",
+    "sinonimos": "Hepatite B",
+    "categoria": "Sorologia"
+  },
+  {
+    "codigo": "SOR005",
+    "nome": "Anti-HBs",
+    "sinonimos": "Imunidade Hepatite B",
+    "categoria": "Sorologia"
+  },
+  {
+    "codigo": "SOR006",
+    "nome": "Anti-HCV",
+    "sinonimos": "Hepatite C",
+    "categoria": "Sorologia"
+  },
+  {
+    "codigo": "SOR007",
+    "nome": "Toxoplasmose IgG",
+    "sinonimos": "Toxo IgG",
+    "categoria": "Sorologia"
+  },
+  {
+    "codigo": "SOR008",
+    "nome": "Toxoplasmose IgM",
+    "sinonimos": "Toxo IgM",
+    "categoria": "Sorologia"
+  },
+  {
+    "codigo": "SOR009",
+    "nome": "CMV IgG",
+    "sinonimos": "Citomegalovírus IgG",
+    "categoria": "Sorologia"
+  },
+  {
+    "codigo": "SOR010",
+    "nome": "CMV IgM",
+    "sinonimos": "Citomegalovírus IgM",
+    "categoria": "Sorologia"
+  },
+  {
+    "codigo": "MIC001",
+    "nome": "Coprocultura",
+    "sinonimos": "Cultura de Fezes",
+    "categoria": "Microbiologia"
+  },
+  {
+    "codigo": "MIC002",
+    "nome": "Parasitológico de Fezes",
+    "sinonimos": "EPF, Exame de Fezes",
+    "categoria": "Microbiologia"
+  },
+  {
+    "codigo": "MIC003",
+    "nome": "Sangue Oculto nas Fezes",
+    "sinonimos": "PSOF",
+    "categoria": "Microbiologia"
+  },
+  {
+    "codigo": "MIC004",
+    "nome": "Influenza A/B",
+    "sinonimos": "Gripe A e B",
+    "categoria": "Virologia"
+  },
+  {
+    "codigo": "MIC005",
+    "nome": "SARS-CoV-2 PCR",
+    "sinonimos": "PCR COVID",
+    "categoria": "Virologia"
+  },
+  {
+    "codigo": "MIC006",
+    "nome": "Dengue NS1",
+    "sinonimos": "Antígeno NS1",
+    "categoria": "Virologia"
+  },
+  {
+    "codigo": "MIC007",
+    "nome": "Dengue IgM",
+    "sinonimos": "Sorologia Dengue IgM",
+    "categoria": "Virologia"
+  },
+  {
+    "codigo": "MIC008",
+    "nome": "Dengue IgG",
+    "sinonimos": "Sorologia Dengue IgG",
+    "categoria": "Virologia"
+  }
+]
