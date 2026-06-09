@@ -18,7 +18,8 @@ export type AdminUser = {
   id: string;
   email: string | null;
   full_name: string | null;
-  role: "admin" | "user";
+  role: "admin" | "user" | "atendente";
+  atendente: string | null;
   created_at: string;
 };
 
@@ -35,21 +36,24 @@ export const listUsers = createServerFn({ method: "GET" })
 
     const ids = list.users.map((u) => u.id);
     const [{ data: profiles }, { data: roles }] = await Promise.all([
-      supabaseAdmin.from("profiles").select("id, full_name").in("id", ids),
+      supabaseAdmin.from("profiles").select("id, full_name, atendente").in("id", ids),
       supabaseAdmin.from("user_roles").select("user_id, role").in("user_id", ids),
     ]);
 
-    const profileMap = new Map((profiles ?? []).map((p) => [p.id, p.full_name]));
-    const roleMap = new Map<string, "admin" | "user">();
+    const profileMap = new Map(
+      (profiles ?? []).map((p) => [p.id, { full_name: p.full_name, atendente: (p as { atendente?: string | null }).atendente ?? null }]),
+    );
+    const roleMap = new Map<string, "admin" | "user" | "atendente">();
     (roles ?? []).forEach((r) => {
       const cur = roleMap.get(r.user_id);
-      if (r.role === "admin" || !cur) roleMap.set(r.user_id, r.role as "admin" | "user");
+      if (r.role === "admin" || !cur) roleMap.set(r.user_id, r.role as "admin" | "user" | "atendente");
     });
 
     return list.users.map((u) => ({
       id: u.id,
       email: u.email ?? null,
-      full_name: profileMap.get(u.id) ?? null,
+      full_name: profileMap.get(u.id)?.full_name ?? null,
+      atendente: profileMap.get(u.id)?.atendente ?? null,
       role: roleMap.get(u.id) ?? "user",
       created_at: u.created_at,
     }));
@@ -59,7 +63,8 @@ const CreateSchema = z.object({
   email: z.string().trim().email().max(255),
   password: z.string().min(8).max(72),
   full_name: z.string().trim().min(1).max(120),
-  role: z.enum(["admin", "user"]),
+  role: z.enum(["admin", "user", "atendente"]),
+  atendente: z.string().trim().max(120).optional().nullable(),
 });
 
 export const createUser = createServerFn({ method: "POST" })
@@ -78,17 +83,22 @@ export const createUser = createServerFn({ method: "POST" })
     const newId = created.user?.id;
     if (!newId) throw new Error("User creation failed");
 
-    if (data.role === "admin") {
+    if (data.role !== "user") {
+      await supabaseAdmin.from("user_roles").delete().eq("user_id", newId);
+      await supabaseAdmin.from("user_roles").insert({ user_id: newId, role: data.role });
+    }
+    if (data.atendente !== undefined) {
       await supabaseAdmin
-        .from("user_roles")
-        .upsert({ user_id: newId, role: "admin" }, { onConflict: "user_id,role" });
+        .from("profiles")
+        .update({ atendente: data.atendente || null })
+        .eq("id", newId);
     }
     return { id: newId };
   });
 
 const RoleSchema = z.object({
   user_id: z.string().uuid(),
-  role: z.enum(["admin", "user"]),
+  role: z.enum(["admin", "user", "atendente"]),
 });
 
 export const setUserRole = createServerFn({ method: "POST" })
@@ -102,9 +112,29 @@ export const setUserRole = createServerFn({ method: "POST" })
     }
 
     await supabaseAdmin.from("user_roles").delete().eq("user_id", data.user_id);
+    if (data.role !== "user") {
+      const { error } = await supabaseAdmin
+        .from("user_roles")
+        .insert({ user_id: data.user_id, role: data.role });
+      if (error) throw new Error(error.message);
+    }
+    return { ok: true };
+  });
+
+const AtendenteSchema = z.object({
+  user_id: z.string().uuid(),
+  atendente: z.string().trim().max(120).nullable(),
+});
+
+export const setUserAtendente = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => AtendenteSchema.parse(d))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
     const { error } = await supabaseAdmin
-      .from("user_roles")
-      .insert({ user_id: data.user_id, role: data.role });
+      .from("profiles")
+      .update({ atendente: data.atendente || null })
+      .eq("id", data.user_id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
