@@ -15,11 +15,6 @@ import {
 import { useAuth } from "@/lib/auth";
 
 type Role = "admin" | "user" | "atendente";
-const ROLE_LABEL: Record<Role, string> = {
-  admin: "Administrador",
-  user: "Usuário",
-  atendente: "Atendente",
-};
 
 export const Route = createFileRoute("/_authenticated/admin/users")({
   head: () => ({ meta: [{ title: "Usuários · Santé" }] }),
