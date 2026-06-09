@@ -217,12 +217,16 @@ function VendasPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Link to="/" className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground transition hover:bg-accent">
-              <LayoutDashboard className="h-4 w-4" /> Painel
-            </Link>
-            <Link to="/conferencia" className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground transition hover:bg-accent">
-              <ClipboardList className="h-4 w-4" /> Conferência
-            </Link>
+            {!auth.isAtendente && (
+              <>
+                <Link to="/" className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground transition hover:bg-accent">
+                  <LayoutDashboard className="h-4 w-4" /> Painel
+                </Link>
+                <Link to="/conferencia" className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground transition hover:bg-accent">
+                  <ClipboardList className="h-4 w-4" /> Conferência
+                </Link>
+              </>
+            )}
             <div className="hidden sm:block text-right">
               <div className="text-xs text-muted-foreground">{auth.user?.email}</div>
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{auth.role ?? "—"}</div>
