@@ -19,6 +19,7 @@ import {
   Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { ExamesMultiSelect } from "@/components/ExamesMultiSelect";
 
 export const Route = createFileRoute("/_authenticated/vendas")({
   head: () => ({
@@ -56,7 +57,7 @@ function VendasPage() {
   const [fData, setFData] = useState(todayISO());
   const [fCodigo, setFCodigo] = useState("");
   const [fValor, setFValor] = useState("");
-  const [fExames, setFExames] = useState("");
+  const [fExames, setFExames] = useState<string[]>([]);
   const [fTipo, setFTipo] = useState<"exames" | "checkup">("exames");
   const [submitting, setSubmitting] = useState(false);
 
@@ -71,8 +72,16 @@ function VendasPage() {
     const loaded = typeof window !== "undefined" ? loadOrcamentos() : null;
     loaded?.rows.forEach((r) => r.usuario && set.add(r.usuario));
     vendas.forEach((v) => v.atendente && set.add(v.atendente));
+    if (auth.atendenteName) set.add(auth.atendenteName);
     return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
-  }, [vendas]);
+  }, [vendas, auth.atendenteName]);
+
+  // Prefill / lock atendente when user is "atendente"
+  useEffect(() => {
+    if (auth.isAtendente && auth.atendenteName && fAtend !== auth.atendenteName) {
+      setFAtend(auth.atendenteName);
+    }
+  }, [auth.isAtendente, auth.atendenteName, fAtend]);
 
   const fetchVendas = async () => {
     setLoading(true);
@@ -94,7 +103,7 @@ function VendasPage() {
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fAtend || !fData || !fCodigo || !fValor || !fExames || !fTipo) {
+    if (!fAtend || !fData || !fCodigo || !fValor || fExames.length === 0 || !fTipo) {
       toast.error("Preencha todos os campos.");
       return;
     }
@@ -109,7 +118,7 @@ function VendasPage() {
       data_venda: fData,
       codigo: fCodigo,
       valor: valorNum,
-      exames: fExames,
+      exames: fExames.join(", "),
       tipo: fTipo,
       created_by: auth.user?.id as string,
     });
@@ -121,7 +130,7 @@ function VendasPage() {
     toast.success("Venda registrada!");
     setFCodigo("");
     setFValor("");
-    setFExames("");
+    setFExames([]);
     setFData(todayISO());
     fetchVendas();
   };
@@ -239,17 +248,24 @@ function VendasPage() {
               <form onSubmit={onSubmit} className="grid gap-4 md:grid-cols-3">
                 <div className="space-y-1.5">
                   <Label>Atendente</Label>
-                  <Select value={fAtend} onValueChange={setFAtend}>
-                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                    <SelectContent>
-                      {attendants.length === 0 && (
-                        <div className="px-2 py-1.5 text-xs text-muted-foreground">Nenhum atendente — importe orçamentos no painel.</div>
-                      )}
-                      {attendants.map((a) => (
-                        <SelectItem key={a} value={a}>{a}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {auth.isAtendente ? (
+                    <Input value={fAtend} readOnly disabled placeholder="Não vinculado" />
+                  ) : (
+                    <Select value={fAtend} onValueChange={setFAtend}>
+                      <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                      <SelectContent>
+                        {attendants.length === 0 && (
+                          <div className="px-2 py-1.5 text-xs text-muted-foreground">Nenhum atendente — importe orçamentos no painel.</div>
+                        )}
+                        {attendants.map((a) => (
+                          <SelectItem key={a} value={a}>{a}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                  {auth.isAtendente && !auth.atendenteName && (
+                    <p className="text-[11px] text-destructive">Seu usuário ainda não está vinculado a uma atendente. Peça ao administrador.</p>
+                  )}
                 </div>
                 <div className="space-y-1.5">
                   <Label>Data da venda</Label>
@@ -268,7 +284,7 @@ function VendasPage() {
                 </div>
                 <div className="space-y-1.5 md:col-span-2">
                   <Label>Exames</Label>
-                  <Input value={fExames} onChange={(e) => setFExames(e.target.value)} placeholder="VTD/B12" required />
+                  <ExamesMultiSelect value={fExames} onChange={setFExames} />
                 </div>
                 <div className="space-y-1.5 md:col-span-3">
                   <Label>Tipo</Label>
