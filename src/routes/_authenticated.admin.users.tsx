@@ -2,16 +2,24 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
 import { Toaster, toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, KeyRound, Plus, Shield, Trash2, User as UserIcon } from "lucide-react";
+import { ArrowLeft, KeyRound, Plus, Shield, Trash2, User as UserIcon, Headset } from "lucide-react";
 import {
   listUsers,
   createUser,
   setUserRole,
+  setUserAtendente,
   deleteUser,
   resetPassword,
   type AdminUser,
 } from "@/lib/admin.functions";
 import { useAuth } from "@/lib/auth";
+
+type Role = "admin" | "user" | "atendente";
+const ROLE_LABEL: Record<Role, string> = {
+  admin: "Administrador",
+  user: "Usuário",
+  atendente: "Atendente",
+};
 
 export const Route = createFileRoute("/_authenticated/admin/users")({
   head: () => ({ meta: [{ title: "Usuários · Santé" }] }),
@@ -24,6 +32,7 @@ function AdminUsersPage() {
   const listFn = useServerFn(listUsers);
   const createFn = useServerFn(createUser);
   const setRoleFn = useServerFn(setUserRole);
+  const setAtendenteFn = useServerFn(setUserAtendente);
   const deleteFn = useServerFn(deleteUser);
   const resetFn = useServerFn(resetPassword);
 
@@ -108,6 +117,7 @@ function AdminUsersPage() {
                   <th className="py-3 pl-5 pr-2 text-left font-medium">Usuário</th>
                   <th className="py-3 px-2 text-left font-medium">E-mail</th>
                   <th className="py-3 px-2 text-left font-medium">Papel</th>
+                  <th className="py-3 px-2 text-left font-medium">Atendente</th>
                   <th className="py-3 pl-2 pr-5 text-right font-medium">Ações</th>
                 </tr>
               </thead>
@@ -119,6 +129,7 @@ function AdminUsersPage() {
                     isSelf={u.id === auth.user?.id}
                     onChanged={refresh}
                     setRoleFn={setRoleFn}
+                    setAtendenteFn={setAtendenteFn}
                     deleteFn={deleteFn}
                     resetFn={resetFn}
                   />
@@ -139,21 +150,30 @@ function CreateUserForm({
 }: {
   onCancel: () => void;
   onCreated: () => void;
-  createFn: (args: { data: { email: string; password: string; full_name: string; role: "admin" | "user" } }) => Promise<{ id: string }>;
+  createFn: (args: { data: { email: string; password: string; full_name: string; role: Role; atendente?: string | null } }) => Promise<{ id: string }>;
 }) {
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState({
     full_name: "",
     email: "",
     password: "",
-    role: "user" as "admin" | "user",
+    role: "user" as Role,
+    atendente: "",
   });
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setBusy(true);
     try {
-      await createFn({ data: form });
+      await createFn({
+        data: {
+          email: form.email,
+          password: form.password,
+          full_name: form.full_name,
+          role: form.role,
+          atendente: form.atendente.trim() || null,
+        },
+      });
       toast.success("Usuário criado");
       onCreated();
     } catch (e) {
@@ -178,13 +198,19 @@ function CreateUserForm({
           <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Papel</label>
           <select
             value={form.role}
-            onChange={(e) => setForm({ ...form, role: e.target.value as "admin" | "user" })}
+            onChange={(e) => setForm({ ...form, role: e.target.value as Role })}
             className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           >
             <option value="user">Usuário</option>
+            <option value="atendente">Atendente</option>
             <option value="admin">Administrador</option>
           </select>
         </div>
+        <Input
+          label="Atendente vinculada (nome exato do orçamento)"
+          value={form.atendente}
+          onChange={(v) => setForm({ ...form, atendente: v })}
+        />
       </div>
       <div className="mt-5 flex justify-end gap-2">
         <button
@@ -229,18 +255,20 @@ function Input({
 }
 
 function UserRow({
-  u, isSelf, onChanged, setRoleFn, deleteFn, resetFn,
+  u, isSelf, onChanged, setRoleFn, setAtendenteFn, deleteFn, resetFn,
 }: {
   u: AdminUser;
   isSelf: boolean;
   onChanged: () => void;
-  setRoleFn: (args: { data: { user_id: string; role: "admin" | "user" } }) => Promise<unknown>;
+  setRoleFn: (args: { data: { user_id: string; role: Role } }) => Promise<unknown>;
+  setAtendenteFn: (args: { data: { user_id: string; atendente: string | null } }) => Promise<unknown>;
   deleteFn: (args: { data: { user_id: string } }) => Promise<unknown>;
   resetFn: (args: { data: { user_id: string; password: string } }) => Promise<unknown>;
 }) {
   const [busy, setBusy] = useState(false);
+  const [atendDraft, setAtendDraft] = useState(u.atendente ?? "");
 
-  const changeRole = async (role: "admin" | "user") => {
+  const changeRole = async (role: Role) => {
     if (role === u.role) return;
     setBusy(true);
     try {
@@ -249,6 +277,21 @@ function UserRow({
       onChanged();
     } catch (e) {
       toast.error("Falha ao atualizar papel", { description: (e as Error).message });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const saveAtendente = async () => {
+    const next = atendDraft.trim() || null;
+    if ((u.atendente ?? null) === next) return;
+    setBusy(true);
+    try {
+      await setAtendenteFn({ data: { user_id: u.id, atendente: next } });
+      toast.success("Atendente vinculada");
+      onChanged();
+    } catch (e) {
+      toast.error("Falha ao vincular", { description: (e as Error).message });
     } finally {
       setBusy(false);
     }
@@ -288,7 +331,7 @@ function UserRow({
       <td className="py-3 pl-5 pr-2">
         <div className="flex items-center gap-2">
           <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-accent text-primary">
-            {u.role === "admin" ? <Shield className="h-4 w-4" /> : <UserIcon className="h-4 w-4" />}
+            {u.role === "admin" ? <Shield className="h-4 w-4" /> : u.role === "atendente" ? <Headset className="h-4 w-4" /> : <UserIcon className="h-4 w-4" />}
           </span>
           <div>
             <div className="font-medium text-foreground">{u.full_name ?? "—"}</div>
@@ -301,12 +344,24 @@ function UserRow({
         <select
           value={u.role}
           disabled={busy || isSelf}
-          onChange={(e) => changeRole(e.target.value as "admin" | "user")}
+          onChange={(e) => changeRole(e.target.value as Role)}
           className="rounded-md border border-input bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60"
         >
           <option value="user">Usuário</option>
+          <option value="atendente">Atendente</option>
           <option value="admin">Administrador</option>
         </select>
+      </td>
+      <td className="py-3 px-2">
+        <input
+          type="text"
+          value={atendDraft}
+          onChange={(e) => setAtendDraft(e.target.value)}
+          onBlur={saveAtendente}
+          onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+          placeholder="—"
+          className="w-44 rounded-md border border-input bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60"
+        />
       </td>
       <td className="py-3 pl-2 pr-5 text-right">
         <div className="inline-flex gap-1">
