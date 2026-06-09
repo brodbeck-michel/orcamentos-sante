@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Toaster } from "sonner";
 import { LogOut, Users, LayoutDashboard, ClipboardList, ArrowUpDown, ArrowDown, ArrowUp, ShoppingBag } from "lucide-react";
@@ -18,6 +18,7 @@ export const Route = createFileRoute("/_authenticated/conferencia")({
 
 function ConferenciaPage() {
   const auth = useAuth();
+  const navigate = useNavigate();
   const [data, setData] = useState<{ rows: OrcamentoRow[]; fileName: string; importedAt: string } | null>(null);
   const [ready, setReady] = useState(false);
 
@@ -25,6 +26,12 @@ function ConferenciaPage() {
     setData(loadOrcamentos());
     setReady(true);
   }, []);
+
+  useEffect(() => {
+    if (!auth.loading && auth.isAtendente) navigate({ to: "/vendas", replace: true });
+  }, [auth.loading, auth.isAtendente, navigate]);
+
+  if (auth.isAtendente) return null;
 
   const rows = data?.rows ?? [];
 
