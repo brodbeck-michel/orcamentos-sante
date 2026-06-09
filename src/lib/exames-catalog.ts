@@ -1,4 +1,5 @@
-[
+export type Exame = { codigo: string; nome: string; sinonimos?: string; categoria?: string };
+export const EXAMES_CATALOG: Exame[] = [
   {
     "codigo": "HEM001",
     "nome": "Hemograma Completo",
@@ -437,4 +438,4 @@
     "sinonimos": "Sorologia Dengue IgG",
     "categoria": "Virologia"
   }
-]
+];
