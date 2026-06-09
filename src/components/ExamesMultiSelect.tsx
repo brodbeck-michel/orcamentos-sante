@@ -11,10 +11,9 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Badge } from "@/components/ui/badge";
-import catalog from "@/lib/exames-catalog.json";
+import { EXAMES_CATALOG, type Exame } from "@/lib/exames-catalog";
 
-type Exame = { codigo: string; nome: string; sinonimos?: string; categoria?: string };
-const EXAMES = catalog as Exame[];
+const EXAMES: Exame[] = EXAMES_CATALOG;
 
 export function ExamesMultiSelect({
   value,
