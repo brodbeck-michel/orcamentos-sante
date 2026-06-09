@@ -20,6 +20,7 @@ export const Route = createFileRoute("/_authenticated/")({
 
 function Index() {
   const auth = useAuth();
+  const navigate = useNavigate();
   const [data, setData] = useState<{ rows: OrcamentoRow[]; fileName: string; importedAt: string } | null>(null);
   const [ready, setReady] = useState(false);
 
@@ -28,6 +29,12 @@ function Index() {
     refresh();
     setReady(true);
   }, []);
+
+  useEffect(() => {
+    if (!auth.loading && auth.isAtendente) navigate({ to: "/vendas", replace: true });
+  }, [auth.loading, auth.isAtendente, navigate]);
+
+  if (auth.isAtendente) return null;
 
   return (
     <div className="min-h-screen" style={{ background: "var(--gradient-soft)" }}>
