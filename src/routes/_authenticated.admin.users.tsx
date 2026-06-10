@@ -10,9 +10,11 @@ import {
   setUserAtendente,
   deleteUser,
   resetPassword,
+  listAtendentes,
   type AdminUser,
 } from "@/lib/admin.functions";
 import { useAuth } from "@/lib/auth";
+import { AtendenteCombobox } from "@/components/AtendenteCombobox";
 
 type Role = "admin" | "user" | "atendente";
 
@@ -30,15 +32,18 @@ function AdminUsersPage() {
   const setAtendenteFn = useServerFn(setUserAtendente);
   const deleteFn = useServerFn(deleteUser);
   const resetFn = useServerFn(resetPassword);
+  const listAtendentesFn = useServerFn(listAtendentes);
 
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [atendentes, setAtendentes] = useState<string[]>([]);
 
   const refresh = async () => {
     try {
-      const data = await listFn();
+      const [data, ats] = await Promise.all([listFn(), listAtendentesFn()]);
       setUsers(data);
+      setAtendentes(ats);
     } catch (e) {
       toast.error("Falha ao listar usuários", { description: (e as Error).message });
     } finally {
@@ -97,6 +102,7 @@ function AdminUsersPage() {
               await refresh();
             }}
             createFn={createFn}
+            atendentes={atendentes}
           />
         )}
 
@@ -127,6 +133,7 @@ function AdminUsersPage() {
                     setAtendenteFn={setAtendenteFn}
                     deleteFn={deleteFn}
                     resetFn={resetFn}
+                    atendentes={atendentes}
                   />
                 ))}
               </tbody>
