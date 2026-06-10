@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Toaster } from "sonner";
 import { UploadDropzone } from "@/components/UploadDropzone";
 import { Dashboard } from "@/components/Dashboard";
