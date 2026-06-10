@@ -1,14 +1,14 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Toaster, toast } from "sonner";
-import { LogOut, LayoutDashboard, ClipboardList, ShoppingBag, Trash2 } from "lucide-react";
+import { ShoppingBag, Trash2 } from "lucide-react";
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid,
 } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
-import { signOut, useAuth } from "@/lib/auth";
+import { useAuth } from "@/lib/auth";
 import { loadOrcamentos, fmtBRLFull } from "@/lib/orcamento";
-import logoSante from "@/assets/logo-sante.png.asset.json";
+import { AppHeader } from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -207,36 +207,7 @@ function VendasPage() {
   return (
     <div className="min-h-screen" style={{ background: "var(--gradient-soft)" }}>
       <Toaster position="top-right" richColors />
-      <header className="border-b border-border bg-card/70 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-4">
-          <div className="flex items-center gap-3">
-            <img src={logoSante.url} alt="Laboratório Santé" className="h-11 w-11 rounded-lg object-cover" />
-            <div>
-              <h1 className="text-base font-semibold tracking-tight text-foreground">Registro de Vendas</h1>
-              <p className="text-xs text-muted-foreground">Lançamento e relatórios de vendas</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {!auth.isAtendente && (
-              <>
-                <Link to="/" className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground transition hover:bg-accent">
-                  <LayoutDashboard className="h-4 w-4" /> Painel
-                </Link>
-                <Link to="/conferencia" className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground transition hover:bg-accent">
-                  <ClipboardList className="h-4 w-4" /> Conferência
-                </Link>
-              </>
-            )}
-            <div className="hidden sm:block text-right">
-              <div className="text-xs text-muted-foreground">{auth.user?.email}</div>
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{auth.role ?? "—"}</div>
-            </div>
-            <button onClick={signOut} className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm text-muted-foreground transition hover:bg-accent hover:text-foreground" title="Sair">
-              <LogOut className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      </header>
+      <AppHeader active="vendas" subtitle="Registro de vendas" />
 
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
         <Tabs defaultValue="registro" className="space-y-6">

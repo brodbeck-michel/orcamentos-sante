@@ -10,9 +10,11 @@ import {
   setUserAtendente,
   deleteUser,
   resetPassword,
+  listAtendentes,
   type AdminUser,
 } from "@/lib/admin.functions";
 import { useAuth } from "@/lib/auth";
+import { AtendenteCombobox } from "@/components/AtendenteCombobox";
 
 type Role = "admin" | "user" | "atendente";
 
@@ -30,15 +32,18 @@ function AdminUsersPage() {
   const setAtendenteFn = useServerFn(setUserAtendente);
   const deleteFn = useServerFn(deleteUser);
   const resetFn = useServerFn(resetPassword);
+  const listAtendentesFn = useServerFn(listAtendentes);
 
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [atendentes, setAtendentes] = useState<string[]>([]);
 
   const refresh = async () => {
     try {
-      const data = await listFn();
+      const [data, ats] = await Promise.all([listFn(), listAtendentesFn()]);
       setUsers(data);
+      setAtendentes(ats);
     } catch (e) {
       toast.error("Falha ao listar usuários", { description: (e as Error).message });
     } finally {
@@ -97,6 +102,7 @@ function AdminUsersPage() {
               await refresh();
             }}
             createFn={createFn}
+            atendentes={atendentes}
           />
         )}
 
@@ -127,6 +133,7 @@ function AdminUsersPage() {
                     setAtendenteFn={setAtendenteFn}
                     deleteFn={deleteFn}
                     resetFn={resetFn}
+                    atendentes={atendentes}
                   />
                 ))}
               </tbody>
@@ -142,10 +149,12 @@ function CreateUserForm({
   onCancel,
   onCreated,
   createFn,
+  atendentes,
 }: {
   onCancel: () => void;
   onCreated: () => void;
   createFn: (args: { data: { email: string; password: string; full_name: string; role: Role; atendente?: string | null } }) => Promise<{ id: string }>;
+  atendentes: string[];
 }) {
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState({
@@ -201,11 +210,18 @@ function CreateUserForm({
             <option value="admin">Administrador</option>
           </select>
         </div>
-        <Input
-          label="Atendente vinculada (nome exato do orçamento)"
-          value={form.atendente}
-          onChange={(v) => setForm({ ...form, atendente: v })}
-        />
+        <div>
+          <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Atendente vinculada
+          </label>
+          <div className="mt-1">
+            <AtendenteCombobox
+              value={form.atendente}
+              onChange={(v) => setForm({ ...form, atendente: v })}
+              suggestions={atendentes}
+            />
+          </div>
+        </div>
       </div>
       <div className="mt-5 flex justify-end gap-2">
         <button
@@ -250,7 +266,7 @@ function Input({
 }
 
 function UserRow({
-  u, isSelf, onChanged, setRoleFn, setAtendenteFn, deleteFn, resetFn,
+  u, isSelf, onChanged, setRoleFn, setAtendenteFn, deleteFn, resetFn, atendentes,
 }: {
   u: AdminUser;
   isSelf: boolean;
@@ -259,6 +275,7 @@ function UserRow({
   setAtendenteFn: (args: { data: { user_id: string; atendente: string | null } }) => Promise<unknown>;
   deleteFn: (args: { data: { user_id: string } }) => Promise<unknown>;
   resetFn: (args: { data: { user_id: string; password: string } }) => Promise<unknown>;
+  atendentes: string[];
 }) {
   const [busy, setBusy] = useState(false);
   const [atendDraft, setAtendDraft] = useState(u.atendente ?? "");
@@ -277,8 +294,8 @@ function UserRow({
     }
   };
 
-  const saveAtendente = async () => {
-    const next = atendDraft.trim() || null;
+  const saveAtendente = async (raw: string) => {
+    const next = raw.trim() || null;
     if ((u.atendente ?? null) === next) return;
     setBusy(true);
     try {
@@ -348,15 +365,17 @@ function UserRow({
         </select>
       </td>
       <td className="py-3 px-2">
-        <input
-          type="text"
-          value={atendDraft}
-          onChange={(e) => setAtendDraft(e.target.value)}
-          onBlur={saveAtendente}
-          onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
-          placeholder="—"
-          className="w-44 rounded-md border border-input bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60"
-        />
+        <div className="w-56">
+          <AtendenteCombobox
+            value={atendDraft}
+            onChange={(v) => {
+              setAtendDraft(v);
+              saveAtendente(v);
+            }}
+            suggestions={atendentes}
+            disabled={busy}
+          />
+        </div>
       </td>
       <td className="py-3 pl-2 pr-5 text-right">
         <div className="inline-flex gap-1">
