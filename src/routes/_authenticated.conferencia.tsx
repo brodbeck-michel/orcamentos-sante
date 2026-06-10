@@ -1,10 +1,10 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Toaster } from "sonner";
-import { LogOut, Users, LayoutDashboard, ClipboardList, ArrowUpDown, ArrowDown, ArrowUp, ShoppingBag } from "lucide-react";
+import { ClipboardList, ArrowUpDown, ArrowDown, ArrowUp } from "lucide-react";
 import { loadOrcamentos, OrcamentoRow, fmtBRLFull } from "@/lib/orcamento";
-import { signOut, useAuth } from "@/lib/auth";
-import logoSante from "@/assets/logo-sante.png.asset.json";
+import { useAuth } from "@/lib/auth";
+import { AppHeader } from "@/components/AppHeader";
 
 export const Route = createFileRoute("/_authenticated/conferencia")({
   head: () => ({
@@ -170,61 +170,7 @@ function ConferenciaPage() {
   return (
     <div className="min-h-screen" style={{ background: "var(--gradient-soft)" }}>
       <Toaster position="top-right" richColors />
-      <header className="border-b border-border bg-card/70 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-4">
-          <div className="flex items-center gap-3">
-            <img
-              src={logoSante.url}
-              alt="Laboratório Santé"
-              className="h-11 w-11 rounded-lg object-cover"
-            />
-            <div>
-              <h1 className="text-base font-semibold tracking-tight text-foreground">
-                Laboratório Santé
-              </h1>
-              <p className="text-xs text-muted-foreground">Conferência</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Link
-              to="/"
-              className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground transition hover:bg-accent"
-            >
-              <LayoutDashboard className="h-4 w-4" />
-              Dashboard
-            </Link>
-            <Link
-              to="/vendas"
-              className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground transition hover:bg-accent"
-            >
-              <ShoppingBag className="h-4 w-4" />
-              Vendas
-            </Link>
-            {auth.isAdmin && (
-              <Link
-                to="/admin/users"
-                className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground transition hover:bg-accent"
-              >
-                <Users className="h-4 w-4" />
-                Usuários
-              </Link>
-            )}
-            <div className="hidden sm:block text-right">
-              <div className="text-xs text-muted-foreground">{auth.user?.email}</div>
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                {auth.role ?? "—"}
-              </div>
-            </div>
-            <button
-              onClick={signOut}
-              className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm text-muted-foreground transition hover:bg-accent hover:text-foreground"
-              title="Sair"
-            >
-              <LogOut className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      </header>
+      <AppHeader active="conferencia" subtitle="Conferência de orçamentos" />
 
       <main className="mx-auto max-w-7xl px-6 py-8 space-y-6">
         <div className="flex items-center gap-2">
