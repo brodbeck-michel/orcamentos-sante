@@ -298,6 +298,10 @@ function ConferenciaPage() {
                   </div>
                 </div>
               </div>
+              <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+                <span className="inline-block h-3 w-3 rounded-sm bg-amber-500/40 border border-amber-500/60" />
+                Linhas destacadas: orçamento de outro período, recebido dentro do período filtrado.
+              </div>
             </div>
 
             {/* Tabela */}
