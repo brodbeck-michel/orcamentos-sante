@@ -437,5 +437,18 @@ export const EXAMES_CATALOG: Exame[] = [
     "nome": "Dengue IgG",
     "sinonimos": "Sorologia Dengue IgG",
     "categoria": "Virologia"
-  }
+  },
+  { "codigo": "BIO023", "nome": "Glicose (Sangue)", "sinonimos": "Glicemia, GLI", "categoria": "Bioquímica" },
+  { "codigo": "BIO024", "nome": "Glicose - Plasma", "sinonimos": "GLIPL, Glicemia Plasmática", "categoria": "Bioquímica" },
+  { "codigo": "BIO025", "nome": "Potássio (Sangue)", "sinonimos": "K, POT", "categoria": "Bioquímica" },
+  { "codigo": "BIO026", "nome": "Sódio (Sangue)", "sinonimos": "Na, NA", "categoria": "Bioquímica" },
+  { "codigo": "BIO027", "nome": "Cálcio (Sangue)", "sinonimos": "Ca, CAL", "categoria": "Bioquímica" },
+  { "codigo": "BIO028", "nome": "Magnésio", "sinonimos": "Mg, MG", "categoria": "Bioquímica" },
+  { "codigo": "BIO029", "nome": "Zinco (Soro)", "sinonimos": "Zn, ZIN", "categoria": "Bioquímica" },
+  { "codigo": "BIO030", "nome": "CPK", "sinonimos": "Creatinofosfoquinase, Creatina Quinase, CK", "categoria": "Bioquímica" },
+  { "codigo": "BIO031", "nome": "Lipidograma Completo", "sinonimos": "Perfil Lipídico, LID", "categoria": "Bioquímica" },
+  { "codigo": "HEM008", "nome": "VHS", "sinonimos": "Hemossedimentação, Velocidade de Hemossedimentação", "categoria": "Hematologia" },
+  { "codigo": "MIC009", "nome": "Antibiograma", "sinonimos": "TSA, Teste de Sensibilidade a Antimicrobianos", "categoria": "Microbiologia" },
+  { "codigo": "ONC001", "nome": "PSA Total", "sinonimos": "Antígeno Prostático Específico", "categoria": "Marcadores Tumorais" },
+  { "codigo": "TOX001", "nome": "Exame Toxicológico (Drogas de Abuso)", "sinonimos": "Toxicológico, Drogas de Abuso", "categoria": "Toxicologia" }
 ];
