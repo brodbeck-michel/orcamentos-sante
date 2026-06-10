@@ -95,15 +95,21 @@ function ConferenciaPage() {
   const filtered = useMemo(() => {
     const from = dateFrom ? new Date(dateFrom + "T00:00:00") : null;
     const to = dateTo ? new Date(dateTo + "T23:59:59") : null;
+    const inRange = (d: Date | null) => {
+      if (!d) return false;
+      if (from && d < from) return false;
+      if (to && d > to) return false;
+      return true;
+    };
     const result = rows.filter((r) => {
-      if (from || to) {
-        if (!r.data) return false;
-        if (from && r.data < from) return false;
-        if (to && r.data > to) return false;
-      }
       if (usuarioFilter !== "all" && r.usuario !== usuarioFilter) return false;
       if (reqFilter === "com" && !r.requisicao) return false;
       if (reqFilter === "sem" && r.requisicao) return false;
+      if (from || to) {
+        const orcOk = r.data ? inRange(r.data) : false;
+        const pagOk = r.dataPagamento ? inRange(r.dataPagamento) : false;
+        if (!orcOk && !pagOk) return false;
+      }
       return true;
     });
     if (sortKey) {
@@ -130,15 +136,33 @@ function ConferenciaPage() {
   }, [rows, dateFrom, dateTo, usuarioFilter, reqFilter, sortKey, sortDir]);
 
   const totals = useMemo(() => {
+    const from = dateFrom ? new Date(dateFrom + "T00:00:00") : null;
+    const to = dateTo ? new Date(dateTo + "T23:59:59") : null;
+    const inRange = (d: Date | null) => {
+      if (!d) return false;
+      if (from && d < from) return false;
+      if (to && d > to) return false;
+      return true;
+    };
     return filtered.reduce(
       (acc, r) => {
-        acc.orcado += r.vlTotal1;
-        acc.pago += r.valorPago;
+        const orcOk = r.data ? inRange(r.data) : false;
+        const pagOk = r.dataPagamento ? inRange(r.dataPagamento) : false;
+        if (orcOk) acc.orcado += r.vlTotal1;
+        if (pagOk) acc.pago += r.valorPago;
         return acc;
       },
       { orcado: 0, pago: 0 },
     );
-  }, [filtered]);
+  }, [filtered, dateFrom, dateTo]);
+
+  const periodFrom = dateFrom ? new Date(dateFrom + "T00:00:00") : null;
+  const periodTo = dateTo ? new Date(dateTo + "T23:59:59") : null;
+  const isOnlyByPayment = (r: OrcamentoRow) => {
+    if (!periodFrom && !periodTo) return false;
+    const inOrc = r.data && (!periodFrom || r.data >= periodFrom) && (!periodTo || r.data <= periodTo);
+    return !inOrc;
+  };
 
   const fmtDate = (d: Date | null) =>
     d ? d.toLocaleDateString("pt-BR") : "—";
@@ -274,6 +298,10 @@ function ConferenciaPage() {
                   </div>
                 </div>
               </div>
+              <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+                <span className="inline-block h-3 w-3 rounded-sm bg-amber-500/40 border border-amber-500/60" />
+                Linhas destacadas: orçamento de outro período, recebido dentro do período filtrado.
+              </div>
             </div>
 
             {/* Tabela */}
@@ -302,7 +330,15 @@ function ConferenciaPage() {
                       </tr>
                     ) : (
                       filtered.map((r, i) => (
-                        <tr key={`${r.orcamento}-${i}`} className="hover:bg-muted/30">
+                        <tr
+                          key={`${r.orcamento}-${i}`}
+                          className={
+                            isOnlyByPayment(r)
+                              ? "bg-amber-500/10 hover:bg-amber-500/20"
+                              : "hover:bg-muted/30"
+                          }
+                          title={isOnlyByPayment(r) ? "Orçamento de outro período · recebido no período filtrado" : undefined}
+                        >
                           <td className="px-3 py-2 font-mono text-xs text-foreground">{r.orcamento}</td>
                           <td className="px-3 py-2 text-foreground">{fmtDate(r.data)}</td>
                           <td className="px-3 py-2 text-foreground">{r.paciente ?? "—"}</td>
