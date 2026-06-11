@@ -172,7 +172,7 @@ function ConferenciaPage() {
       <Toaster position="top-right" richColors />
       <AppHeader active="conferencia" subtitle="Conferência de orçamentos" />
 
-      <main className="mx-auto max-w-7xl px-6 py-8 space-y-6">
+      <main className="mx-auto max-w-7xl px-4 sm:px-6 py-6 sm:py-8 space-y-6">
         <div className="flex items-center gap-2">
           <ClipboardList className="h-5 w-5 text-primary" />
           <h2 className="text-xl font-semibold tracking-tight text-foreground">Conferência de Orçamentos</h2>
