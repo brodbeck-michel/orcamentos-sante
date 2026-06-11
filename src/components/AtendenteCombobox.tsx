@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, ChevronsUpDown, Plus } from "lucide-react";
+import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -15,26 +15,21 @@ export function AtendenteCombobox({
   value,
   onChange,
   suggestions,
-  placeholder = "Selecione ou cadastre…",
+  placeholder = "Selecione…",
   disabled = false,
+  allowClear = true,
 }: {
   value: string;
   onChange: (v: string) => void;
   suggestions: string[];
   placeholder?: string;
   disabled?: boolean;
+  allowClear?: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-
-  const normalized = (s: string) => s.trim().toLowerCase();
-  const trimmedQuery = query.trim();
-  const exists = suggestions.some((s) => normalized(s) === normalized(trimmedQuery));
-
   const pick = (v: string) => {
     onChange(v);
     setOpen(false);
-    setQuery("");
   };
 
   return (
@@ -60,26 +55,19 @@ export function AtendenteCombobox({
             itemValue.toLowerCase().includes(search.toLowerCase()) ? 1 : 0
           }
         >
-          <CommandInput
-            placeholder="Buscar atendente…"
-            value={query}
-            onValueChange={setQuery}
-          />
+          <CommandInput placeholder="Buscar atendente…" />
           <CommandList className="max-h-64">
             <CommandEmpty>
-              {trimmedQuery ? (
-                <button
-                  type="button"
-                  onClick={() => pick(trimmedQuery)}
-                  className="flex w-full items-center gap-2 px-2 py-1.5 text-sm text-primary hover:bg-accent"
-                >
-                  <Plus className="h-4 w-4" /> Cadastrar “{trimmedQuery}”
-                </button>
-              ) : (
-                <span className="px-2 py-1.5 text-sm text-muted-foreground">Nenhum atendente.</span>
-              )}
+              <span className="px-2 py-1.5 text-sm text-muted-foreground">
+                Nenhum atendente. Cadastre em <strong>Configurações → Cadastro de atendentes</strong>.
+              </span>
             </CommandEmpty>
             <CommandGroup heading="Atendentes">
+              {allowClear && value && (
+                <CommandItem value="__clear__" onSelect={() => pick("")}>
+                  <span className="text-muted-foreground">— Sem vínculo —</span>
+                </CommandItem>
+              )}
               {suggestions.map((s) => (
                 <CommandItem key={s} value={s} onSelect={() => pick(s)}>
                   <Check className={cn("mr-2 h-4 w-4", value === s ? "opacity-100" : "opacity-0")} />
@@ -87,14 +75,6 @@ export function AtendenteCombobox({
                 </CommandItem>
               ))}
             </CommandGroup>
-            {trimmedQuery && !exists && (
-              <CommandGroup heading="Novo">
-                <CommandItem value={`__new__${trimmedQuery}`} onSelect={() => pick(trimmedQuery)}>
-                  <Plus className="mr-2 h-4 w-4 text-primary" />
-                  Cadastrar “{trimmedQuery}”
-                </CommandItem>
-              </CommandGroup>
-            )}
           </CommandList>
         </Command>
       </PopoverContent>

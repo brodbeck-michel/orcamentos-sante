@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { LogOut, LayoutDashboard, ClipboardList, ShoppingBag, Settings, Users, Menu, FileSpreadsheet } from "lucide-react";
+import { LogOut, LayoutDashboard, ClipboardList, ShoppingBag, Settings, Users, Menu, FileSpreadsheet, Headset, FlaskConical } from "lucide-react";
 import { useState } from "react";
 import {
   DropdownMenu,
@@ -106,6 +106,18 @@ export function AppHeader({
                     Gestão de usuários
                   </Link>
                 </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/admin/atendentes">
+                    <Headset className="mr-2 h-4 w-4" />
+                    Cadastro de atendentes
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/admin/exames">
+                    <FlaskConical className="mr-2 h-4 w-4" />
+                    Cadastro de exames
+                  </Link>
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           )}
@@ -182,6 +194,20 @@ export function AppHeader({
                         className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm text-foreground hover:bg-accent"
                       >
                         <Users className="h-4 w-4" /> Gestão de usuários
+                      </Link>
+                      <Link
+                        to="/admin/atendentes"
+                        onClick={() => setMobileOpen(false)}
+                        className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm text-foreground hover:bg-accent"
+                      >
+                        <Headset className="h-4 w-4" /> Cadastro de atendentes
+                      </Link>
+                      <Link
+                        to="/admin/exames"
+                        onClick={() => setMobileOpen(false)}
+                        className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm text-foreground hover:bg-accent"
+                      >
+                        <FlaskConical className="h-4 w-4" /> Cadastro de exames
                       </Link>
                     </>
                   )}

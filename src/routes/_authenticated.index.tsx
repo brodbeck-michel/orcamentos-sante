@@ -75,7 +75,7 @@ function Index() {
         </DialogContent>
       </Dialog>
 
-      <main className="mx-auto max-w-7xl px-6 py-10">
+      <main className="mx-auto max-w-7xl px-4 sm:px-6 py-6 sm:py-10">
         {!ready ? null : !data ? (
           <div className="mx-auto max-w-2xl">
             <div className="mb-8 text-center">
@@ -94,7 +94,7 @@ function Index() {
         )}
       </main>
 
-      <footer className="mx-auto max-w-7xl px-6 pb-8 pt-4 text-center text-xs text-muted-foreground">
+      <footer className="mx-auto max-w-7xl px-4 sm:px-6 pb-8 pt-4 text-center text-xs text-muted-foreground">
         Fazer melhor o que já se faz bem. · Laboratório Santé
       </footer>
     </div>

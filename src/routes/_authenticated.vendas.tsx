@@ -7,7 +7,7 @@ import {
 } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
-import { loadOrcamentos, fmtBRLFull } from "@/lib/orcamento";
+import { fmtBRLFull } from "@/lib/orcamento";
 import { AppHeader } from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -66,15 +66,22 @@ function VendasPage() {
   const [filterFrom, setFilterFrom] = useState("");
   const [filterTo, setFilterTo] = useState("");
 
-  // Attendant names from existing orçamentos (localStorage) + previously registered vendas
+  // Attendant names from atendentes table (active only)
+  const [attendantsDb, setAttendantsDb] = useState<string[]>([]);
+  useEffect(() => {
+    supabase
+      .from("atendentes")
+      .select("nome")
+      .eq("ativo", true)
+      .order("nome")
+      .then(({ data }) => setAttendantsDb((data ?? []).map((d) => d.nome)));
+  }, []);
   const attendants = useMemo(() => {
-    const set = new Set<string>();
-    const loaded = typeof window !== "undefined" ? loadOrcamentos() : null;
-    loaded?.rows.forEach((r) => r.usuario && set.add(r.usuario));
+    const set = new Set<string>(attendantsDb);
     vendas.forEach((v) => v.atendente && set.add(v.atendente));
     if (auth.atendenteName) set.add(auth.atendenteName);
     return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
-  }, [vendas, auth.atendenteName]);
+  }, [attendantsDb, vendas, auth.atendenteName]);
 
   // Prefill / lock atendente when user is "atendente"
   useEffect(() => {

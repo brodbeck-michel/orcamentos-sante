@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Check, ChevronsUpDown, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -12,8 +12,7 @@ import {
 } from "@/components/ui/command";
 import { Badge } from "@/components/ui/badge";
 import { EXAMES_CATALOG, type Exame } from "@/lib/exames-catalog";
-
-const EXAMES: Exame[] = EXAMES_CATALOG;
+import { supabase } from "@/integrations/supabase/client";
 
 export function ExamesMultiSelect({
   value,
@@ -25,16 +24,38 @@ export function ExamesMultiSelect({
   placeholder?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const [exames, setExames] = useState<Exame[]>(EXAMES_CATALOG);
+
+  useEffect(() => {
+    let active = true;
+    supabase
+      .from("exames")
+      .select("codigo, nome, categoria, sinonimos")
+      .eq("ativo", true)
+      .order("nome")
+      .then(({ data }) => {
+        if (!active || !data || data.length === 0) return;
+        setExames(
+          data.map((d) => ({
+            codigo: d.codigo,
+            nome: d.nome,
+            categoria: d.categoria ?? undefined,
+            sinonimos: d.sinonimos ?? undefined,
+          })),
+        );
+      });
+    return () => { active = false; };
+  }, []);
 
   const byCategory = useMemo(() => {
     const map = new Map<string, Exame[]>();
-    EXAMES.forEach((e) => {
+    exames.forEach((e) => {
       const k = e.categoria || "Outros";
       if (!map.has(k)) map.set(k, []);
       map.get(k)!.push(e);
     });
     return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0], "pt-BR"));
-  }, []);
+  }, [exames]);
 
   const toggle = (nome: string) => {
     if (value.includes(nome)) onChange(value.filter((v) => v !== nome));

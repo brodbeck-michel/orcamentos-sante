@@ -14,6 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
+      atendentes: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          id: string
+          nome: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          nome: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          nome?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      exames: {
+        Row: {
+          ativo: boolean
+          categoria: string | null
+          codigo: string
+          created_at: string
+          id: string
+          nome: string
+          sinonimos: string | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          categoria?: string | null
+          codigo: string
+          created_at?: string
+          id?: string
+          nome: string
+          sinonimos?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          categoria?: string | null
+          codigo?: string
+          created_at?: string
+          id?: string
+          nome?: string
+          sinonimos?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           atendente: string | null

@@ -93,7 +93,7 @@ function AdminUsersPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl px-6 py-8 space-y-6">
+      <main className="mx-auto max-w-5xl px-4 sm:px-6 py-6 sm:py-8 space-y-6">
         {showForm && (
           <CreateUserForm
             onCancel={() => setShowForm(false)}

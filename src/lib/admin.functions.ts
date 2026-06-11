@@ -175,18 +175,11 @@ export const listAtendentes = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<string[]> => {
     await assertAdmin(context.userId);
-    const [{ data: profs }, { data: vends }] = await Promise.all([
-      supabaseAdmin.from("profiles").select("atendente"),
-      supabaseAdmin.from("vendas").select("atendente"),
-    ]);
-    const set = new Set<string>();
-    (profs ?? []).forEach((p) => {
-      const v = (p as { atendente?: string | null }).atendente;
-      if (v && v.trim()) set.add(v.trim());
-    });
-    (vends ?? []).forEach((v) => {
-      const a = (v as { atendente?: string | null }).atendente;
-      if (a && a.trim()) set.add(a.trim());
-    });
-    return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
+    const { data, error } = await supabaseAdmin
+      .from("atendentes")
+      .select("nome")
+      .eq("ativo", true)
+      .order("nome");
+    if (error) throw new Error(error.message);
+    return (data ?? []).map((d) => d.nome);
   });
