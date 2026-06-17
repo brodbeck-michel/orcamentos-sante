@@ -65,7 +65,8 @@ function BuscaAtivaPage() {
         const semPagto = !r.valorPago || r.valorPago === 0 || !r.dataPagamento;
         return hasReq && semPagto;
       })
-      .map((r) => ({ ...r, diasAberto: r.data ? diasEntre(r.data) : 0 }));
+      .map((r) => ({ ...r, diasAberto: r.data ? diasEntre(r.data) : 0 }))
+      .sort((a, b) => b.diasAberto - a.diasAberto || b.vlTotal1 - a.vlTotal1);
   }, [rows]);
 
   const conveniosList = useMemo(
@@ -102,10 +103,11 @@ function BuscaAtivaPage() {
     const ticket = total > 0 ? valor / total : 0;
     const totalReqs = rows.filter((r) => r.requisicao != null && String(r.requisicao).trim() !== "").length;
     const convertidos = rows.filter(
-      (r) => r.requisicao != null && String(r.requisicao).trim() !== "" && r.valorPago > 0 && r.dataPagamento,
+      (r) => r.requisicao != null && String(r.requisicao).trim() !== "" && (r.valorPago > 0 || !!r.dataPagamento),
     ).length;
     const conversao = totalReqs > 0 ? (convertidos / totalReqs) * 100 : 0;
-    return { total, valor, ticket, conversao };
+    const taxaPendencia = totalReqs > 0 ? ((totalReqs - convertidos) / totalReqs) * 100 : 0;
+    return { total, valor, ticket, conversao, taxaPendencia };
   }, [pendentes, rows]);
 
   const top10 = useMemo(
@@ -121,7 +123,7 @@ function BuscaAtivaPage() {
       const k = r.usuario;
       const cur = map.get(k) ?? { qtd: 0, valor: 0, total: 0, convertidos: 0 };
       cur.total += 1;
-      if (r.valorPago > 0 && r.dataPagamento) cur.convertidos += 1;
+      if (r.valorPago > 0 || !!r.dataPagamento) cur.convertidos += 1;
       map.set(k, cur);
     });
     pendentes.forEach((r) => {
@@ -144,16 +146,16 @@ function BuscaAtivaPage() {
   const insights = useMemo(() => {
     const list: string[] = [];
     if (pendentes.length === 0) return list;
-    list.push(`Existem ${fmtInt(pendentes.length)} requisições sem pagamento.`);
-    list.push(`${fmtBRLFull(kpis.valor)} em potencial de conversão.`);
+    list.push(`Existem ${fmtInt(pendentes.length)} requisições pendentes de pagamento.`);
+    list.push(`${fmtBRLFull(kpis.valor)} em potencial de recuperação.`);
     const convCount = new Map<string, number>();
     pendentes.forEach((r) => convCount.set(r.convenioPrincipal, (convCount.get(r.convenioPrincipal) ?? 0) + 1));
     const topConv = [...convCount.entries()].sort((a, b) => b[1] - a[1])[0];
-    if (topConv) list.push(`Convênio ${topConv[0]} concentra o maior número de pendências (${topConv[1]}).`);
+    if (topConv) list.push(`Convênio ${topConv[0]} concentra o maior número de requisições pendentes de pagamento (${topConv[1]}).`);
     const topAt = porAtendente[0];
-    if (topAt) list.push(`Atendente ${topAt.nome} possui mais orçamentos em aberto (${topAt.qtd}).`);
+    if (topAt) list.push(`Atendente ${topAt.nome} possui mais requisições pendentes de pagamento (${topAt.qtd}).`);
     const acima30 = pendentes.filter((r) => r.diasAberto > 30).length;
-    if (acima30 > 0) list.push(`${acima30} orçamentos estão há mais de 30 dias sem conversão.`);
+    if (acima30 > 0) list.push(`${acima30} requisições pendentes de pagamento estão há mais de 30 dias sem conversão.`);
     return list;
   }, [pendentes, kpis, porAtendente]);
 
@@ -177,11 +179,12 @@ function BuscaAtivaPage() {
         ) : (
           <>
             {/* KPIs */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <KpiCard title="Total de Pendências" value={fmtInt(kpis.total)} />
-              <KpiCard title="Valor Potencial" value={fmtBRLFull(kpis.valor)} />
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              <KpiCard title="Total de Requisições Pendentes de Pagamento" value={fmtInt(kpis.total)} />
+              <KpiCard title="Valor Potencial de Recuperação" value={fmtBRLFull(kpis.valor)} />
               <KpiCard title="Ticket Médio Pendente" value={fmtBRLFull(kpis.ticket)} />
-              <KpiCard title="Taxa de Conversão" value={`${kpis.conversao.toFixed(1)}%`} />
+              <KpiCard title="Conversão Requisição → Pagamento" value={`${kpis.conversao.toFixed(1)}%`} tooltip="Percentual das requisições geradas que já foram convertidas em faturamento." />
+              <KpiCard title="Taxa de Pendência" value={`${kpis.taxaPendencia.toFixed(1)}%`} tooltip="Representa o volume de oportunidades que ainda podem ser recuperadas através da busca ativa." />
             </div>
 
             {/* Insights */}
@@ -244,13 +247,14 @@ function BuscaAtivaPage() {
               {/* Tabela */}
               <div className="lg:col-span-2 rounded-xl border border-border bg-card overflow-hidden">
                 <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-foreground">Pendências</h3>
+                  <h3 className="text-sm font-semibold text-foreground">Requisições Pendentes de Pagamento</h3>
                   <span className="text-xs text-muted-foreground">{pendentes.length} registros</span>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead className="bg-muted/50 text-xs uppercase tracking-wider text-muted-foreground">
                       <tr>
+                        <th className="px-3 py-3 text-left">Requisição</th>
                         <th className="px-3 py-3 text-left">Data</th>
                         <th className="px-3 py-3 text-left">Paciente</th>
                         <th className="px-3 py-3 text-left hidden md:table-cell">Convênio</th>
@@ -262,11 +266,12 @@ function BuscaAtivaPage() {
                     </thead>
                     <tbody className="divide-y divide-border">
                       {pendentes.length === 0 ? (
-                        <tr><td colSpan={7} className="px-3 py-8 text-center text-muted-foreground">Nenhuma pendência encontrada.</td></tr>
+                        <tr><td colSpan={8} className="px-3 py-8 text-center text-muted-foreground">Nenhuma requisição pendente de pagamento encontrada.</td></tr>
                       ) : pendentes.map((r, i) => {
                         const b = badgeForDias(r.diasAberto);
                         return (
                           <tr key={`${r.orcamento}-${i}`} className="hover:bg-muted/30">
+                            <td className="px-3 py-2 text-foreground">{r.requisicao ?? "—"}</td>
                             <td className="px-3 py-2 text-foreground">{fmtDate(r.data)}</td>
                             <td className="px-3 py-2 text-foreground">{r.paciente ?? "—"}</td>
                             <td className="px-3 py-2 text-foreground hidden md:table-cell">{r.convenioPrincipal}</td>
@@ -276,7 +281,7 @@ function BuscaAtivaPage() {
                               <span className={`inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-medium ${b.cls}`}>{b.label}</span>
                             </td>
                             <td className="px-3 py-2 hidden lg:table-cell">
-                              <span className="inline-flex rounded-md bg-amber-500/10 text-amber-700 px-2 py-0.5 text-xs">Pendente</span>
+                              <span className="inline-flex rounded-md bg-amber-500/10 text-amber-700 px-2 py-0.5 text-xs whitespace-nowrap">Requisição Pendente de Pagamento</span>
                             </td>
                           </tr>
                         );
@@ -294,7 +299,7 @@ function BuscaAtivaPage() {
                 </div>
                 <ul className="divide-y divide-border">
                   {top10.length === 0 ? (
-                    <li className="p-4 text-center text-sm text-muted-foreground">Sem pendências.</li>
+                    <li className="p-4 text-center text-sm text-muted-foreground">Sem requisições pendentes de pagamento.</li>
                   ) : top10.map((r, i) => (
                     <li key={`${r.orcamento}-${i}`} className="px-4 py-2.5 flex items-center justify-between gap-2">
                       <div className="min-w-0">
@@ -322,7 +327,7 @@ function BuscaAtivaPage() {
                   <thead className="bg-muted/50 text-xs uppercase tracking-wider text-muted-foreground">
                     <tr>
                       <th className="px-3 py-3 text-left">Atendente</th>
-                      <th className="px-3 py-3 text-right">Pendências</th>
+                      <th className="px-3 py-3 text-right">Requisições Pendentes de Pagamento</th>
                       <th className="px-3 py-3 text-right">Valor Pendente</th>
                       <th className="px-3 py-3 text-right">Conversão</th>
                     </tr>
@@ -349,9 +354,9 @@ function BuscaAtivaPage() {
   );
 }
 
-function KpiCard({ title, value }: { title: string; value: string }) {
+function KpiCard({ title, value, tooltip }: { title: string; value: string; tooltip?: string }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
+    <div className="rounded-xl border border-border bg-card p-4" title={tooltip}>
       <div className="text-xs uppercase tracking-wider text-muted-foreground">{title}</div>
       <div className="mt-1 text-xl font-semibold text-foreground">{value}</div>
     </div>
