@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { LogOut, LayoutDashboard, ClipboardList, ShoppingBag, Settings, Users, Menu, FileSpreadsheet, Headset, FlaskConical } from "lucide-react";
+import { LogOut, LayoutDashboard, ClipboardList, ShoppingBag, Settings, Users, Menu, FileSpreadsheet, Headset, FlaskConical, Search } from "lucide-react";
 import { useState } from "react";
 import {
   DropdownMenu,
@@ -13,11 +13,12 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { signOut, useAuth } from "@/lib/auth";
 import logoSante from "@/assets/logo-sante.png.asset.json";
 
-type NavKey = "dashboard" | "conferencia" | "vendas";
+type NavKey = "dashboard" | "conferencia" | "busca-ativa" | "vendas";
 
-const NAV: { key: NavKey; to: "/" | "/conferencia" | "/vendas"; label: string; Icon: typeof LayoutDashboard }[] = [
+const NAV: { key: NavKey; to: "/" | "/conferencia" | "/busca-ativa" | "/vendas"; label: string; Icon: typeof LayoutDashboard }[] = [
   { key: "dashboard", to: "/", label: "Dashboard", Icon: LayoutDashboard },
   { key: "conferencia", to: "/conferencia", label: "Conferência", Icon: ClipboardList },
+  { key: "busca-ativa", to: "/busca-ativa", label: "Busca Ativa", Icon: Search },
   { key: "vendas", to: "/vendas", label: "Vendas", Icon: ShoppingBag },
 ];
 

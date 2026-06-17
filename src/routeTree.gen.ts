@@ -13,6 +13,7 @@ import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated.index'
 import { Route as AuthenticatedVendasRouteImport } from './routes/_authenticated.vendas'
 import { Route as AuthenticatedConferenciaRouteImport } from './routes/_authenticated.conferencia'
+import { Route as AuthenticatedBuscaAtivaRouteImport } from './routes/_authenticated.busca-ativa'
 import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authenticated.admin.users'
 import { Route as AuthenticatedAdminExamesRouteImport } from './routes/_authenticated.admin.exames'
 import { Route as AuthenticatedAdminAtendentesRouteImport } from './routes/_authenticated.admin.atendentes'
@@ -37,6 +38,11 @@ const AuthenticatedConferenciaRoute =
     path: '/conferencia',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedBuscaAtivaRoute = AuthenticatedBuscaAtivaRouteImport.update({
+  id: '/busca-ativa',
+  path: '/busca-ativa',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedAdminUsersRoute = AuthenticatedAdminUsersRouteImport.update({
   id: '/admin/users',
   path: '/admin/users',
@@ -57,6 +63,7 @@ const AuthenticatedAdminAtendentesRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
+  '/busca-ativa': typeof AuthenticatedBuscaAtivaRoute
   '/conferencia': typeof AuthenticatedConferenciaRoute
   '/vendas': typeof AuthenticatedVendasRoute
   '/admin/atendentes': typeof AuthenticatedAdminAtendentesRoute
@@ -64,6 +71,7 @@ export interface FileRoutesByFullPath {
   '/admin/users': typeof AuthenticatedAdminUsersRoute
 }
 export interface FileRoutesByTo {
+  '/busca-ativa': typeof AuthenticatedBuscaAtivaRoute
   '/conferencia': typeof AuthenticatedConferenciaRoute
   '/vendas': typeof AuthenticatedVendasRoute
   '/': typeof AuthenticatedIndexRoute
@@ -74,6 +82,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authenticated': typeof AuthenticatedRouteWithChildren
+  '/_authenticated/busca-ativa': typeof AuthenticatedBuscaAtivaRoute
   '/_authenticated/conferencia': typeof AuthenticatedConferenciaRoute
   '/_authenticated/vendas': typeof AuthenticatedVendasRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
@@ -85,6 +94,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/busca-ativa'
     | '/conferencia'
     | '/vendas'
     | '/admin/atendentes'
@@ -92,6 +102,7 @@ export interface FileRouteTypes {
     | '/admin/users'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/busca-ativa'
     | '/conferencia'
     | '/vendas'
     | '/'
@@ -101,6 +112,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/_authenticated'
+    | '/_authenticated/busca-ativa'
     | '/_authenticated/conferencia'
     | '/_authenticated/vendas'
     | '/_authenticated/'
@@ -143,6 +155,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedConferenciaRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/busca-ativa': {
+      id: '/_authenticated/busca-ativa'
+      path: '/busca-ativa'
+      fullPath: '/busca-ativa'
+      preLoaderRoute: typeof AuthenticatedBuscaAtivaRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/admin/users': {
       id: '/_authenticated/admin/users'
       path: '/admin/users'
@@ -168,6 +187,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteChildren {
+  AuthenticatedBuscaAtivaRoute: typeof AuthenticatedBuscaAtivaRoute
   AuthenticatedConferenciaRoute: typeof AuthenticatedConferenciaRoute
   AuthenticatedVendasRoute: typeof AuthenticatedVendasRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
@@ -177,6 +197,7 @@ interface AuthenticatedRouteChildren {
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
+  AuthenticatedBuscaAtivaRoute: AuthenticatedBuscaAtivaRoute,
   AuthenticatedConferenciaRoute: AuthenticatedConferenciaRoute,
   AuthenticatedVendasRoute: AuthenticatedVendasRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
