@@ -25,9 +25,6 @@ import {
   monthLabel,
   dedupeByOrcamento,
   dedupeByRequisicao,
-  distinctOrcamentoCount,
-  distinctRequisicaoCount,
-  maxValorPagoByRequisicao,
 } from "@/lib/orcamento";
 import {
   TrendingUp,
@@ -133,8 +130,6 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
       return true;
     });
   }, [rows, dateFrom, dateTo, convenioFilter]);
-
-  const filtered = baseFiltered;
 
   // Deduplicated views — see lib/orcamento.ts. We always count and sum on
   // these, never on the raw row arrays, so duplicated lines of the same
