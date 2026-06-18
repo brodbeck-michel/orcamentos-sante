@@ -5,6 +5,7 @@ import { ClipboardList, ArrowUpDown, ArrowDown, ArrowUp } from "lucide-react";
 import { loadOrcamentos, OrcamentoRow, fmtBRLFull, dedupeByOrcamento, dedupeByRequisicao } from "@/lib/orcamento";
 import { useAuth } from "@/lib/auth";
 import { AppHeader } from "@/components/AppHeader";
+import { useGlobalFilters } from "@/lib/globalFilters";
 
 export const Route = createFileRoute("/_authenticated/conferencia")({
   head: () => ({
@@ -35,34 +36,12 @@ function ConferenciaPage() {
 
   const rows = data?.rows ?? [];
 
-  const [dateFrom, setDateFrom] = useState<string>(() => {
-    if (typeof window !== "undefined") {
-      const saved = window.sessionStorage.getItem("periodo.from");
-      if (saved) return saved;
-    }
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
-  });
-  const [dateTo, setDateTo] = useState<string>(() => {
-    if (typeof window !== "undefined") {
-      const saved = window.sessionStorage.getItem("periodo.to");
-      if (saved) return saved;
-    }
-    const d = new Date();
-    const last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-    return `${last.getFullYear()}-${String(last.getMonth() + 1).padStart(2, "0")}-${String(last.getDate()).padStart(2, "0")}`;
-  });
-  const [usuarioFilter, setUsuarioFilter] = useState<string>("all");
+  const gf = useGlobalFilters();
+  const { dateFrom, dateTo, atendente: usuarioFilter } = gf;
+  const setDateFrom = gf.setDateFrom;
+  const setDateTo = gf.setDateTo;
+  const setUsuarioFilter = gf.setAtendente;
   const [reqFilter, setReqFilter] = useState<"all" | "com" | "sem">("all");
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.sessionStorage.setItem("periodo.from", dateFrom);
-  }, [dateFrom]);
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.sessionStorage.setItem("periodo.to", dateTo);
-  }, [dateTo]);
   type SortKey =
     | "orcamento"
     | "data"
