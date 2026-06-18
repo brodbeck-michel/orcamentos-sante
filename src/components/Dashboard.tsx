@@ -23,6 +23,11 @@ import {
   fmtInt,
   monthKey,
   monthLabel,
+  dedupeByOrcamento,
+  dedupeByRequisicao,
+  distinctOrcamentoCount,
+  distinctRequisicaoCount,
+  maxValorPagoByRequisicao,
 } from "@/lib/orcamento";
 import {
   TrendingUp,
