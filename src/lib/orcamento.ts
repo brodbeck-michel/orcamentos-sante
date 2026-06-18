@@ -148,6 +148,68 @@ export function clearOrcamentos() {
   localStorage.removeItem(STORAGE_KEY);
 }
 
+// ---------------------------------------------------------------------------
+// Deduplication helpers
+//
+// The source spreadsheet often contains multiple rows for the same ORÇAMENTO
+// and/or REQUISIÇÃO (e.g. one row per exam). Counting/summing these rows
+// directly inflates KPIs. Use these helpers everywhere we count orçamentos,
+// count requisições, or compute financials based on valor_pago.
+//
+// Rules (business level):
+//   • Orçamentos únicos    → distinct ORÇAMENTO id.
+//   • Requisições únicas   → distinct REQUISIÇÃO id.
+//   • Valor pago / convertido para uma requisição → MAX(valor_pago) por requisição.
+// ---------------------------------------------------------------------------
+
+export function distinctOrcamentoCount(rows: OrcamentoRow[]): number {
+  const s = new Set<string>();
+  for (const r of rows) if (r.orcamento) s.add(r.orcamento);
+  return s.size;
+}
+
+export function distinctRequisicaoCount(rows: OrcamentoRow[]): number {
+  const s = new Set<string>();
+  for (const r of rows) if (r.requisicao) s.add(String(r.requisicao));
+  return s.size;
+}
+
+/** One representative row per ORÇAMENTO (highest total wins as tiebreaker). */
+export function dedupeByOrcamento(rows: OrcamentoRow[]): OrcamentoRow[] {
+  const map = new Map<string, OrcamentoRow>();
+  for (const r of rows) {
+    if (!r.orcamento) continue;
+    const cur = map.get(r.orcamento);
+    if (!cur || (r.total ?? 0) > (cur.total ?? 0)) map.set(r.orcamento, r);
+  }
+  return [...map.values()];
+}
+
+/** One representative row per REQUISIÇÃO with valorPago = MAX(valor_pago).
+ *  All other fields come from the row that held that maximum value. */
+export function dedupeByRequisicao(rows: OrcamentoRow[]): OrcamentoRow[] {
+  const map = new Map<string, OrcamentoRow>();
+  for (const r of rows) {
+    if (!r.requisicao) continue;
+    const k = String(r.requisicao);
+    const cur = map.get(k);
+    if (!cur || (r.valorPago ?? 0) > (cur.valorPago ?? 0)) map.set(k, r);
+  }
+  return [...map.values()];
+}
+
+/** Map REQUISIÇÃO -> MAX(valor_pago). Useful when you need conversion status. */
+export function maxValorPagoByRequisicao(rows: OrcamentoRow[]): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const r of rows) {
+    if (!r.requisicao) continue;
+    const k = String(r.requisicao);
+    const v = r.valorPago ?? 0;
+    if (!map.has(k) || (map.get(k) as number) < v) map.set(k, v);
+  }
+  return map;
+}
+
 export const fmtBRL = (n: number) =>
   n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 export const fmtBRLFull = (n: number) =>

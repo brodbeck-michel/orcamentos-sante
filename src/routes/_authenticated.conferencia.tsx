@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Toaster } from "sonner";
 import { ClipboardList, ArrowUpDown, ArrowDown, ArrowUp } from "lucide-react";
-import { loadOrcamentos, OrcamentoRow, fmtBRLFull } from "@/lib/orcamento";
+import { loadOrcamentos, OrcamentoRow, fmtBRLFull, dedupeByOrcamento, dedupeByRequisicao } from "@/lib/orcamento";
 import { useAuth } from "@/lib/auth";
 import { AppHeader } from "@/components/AppHeader";
 
@@ -144,16 +144,14 @@ function ConferenciaPage() {
       if (to && d > to) return false;
       return true;
     };
-    return filtered.reduce(
-      (acc, r) => {
-        const orcOk = r.data ? inRange(r.data) : false;
-        const pagOk = r.dataPagamento ? inRange(r.dataPagamento) : false;
-        if (orcOk) acc.orcado += r.vlTotal1;
-        if (pagOk) acc.pago += r.valorPago;
-        return acc;
-      },
-      { orcado: 0, pago: 0 },
-    );
+    // Dedupe ORÇAMENTO (somar vlTotal1 só uma vez por orçamento) e
+    // REQUISIÇÃO (usar MAX(valor_pago) por requisição).
+    const orcadoRows = dedupeByOrcamento(filtered.filter((r) => r.data && inRange(r.data)));
+    const pagoRows = dedupeByRequisicao(filtered.filter((r) => r.dataPagamento && inRange(r.dataPagamento)));
+    return {
+      orcado: orcadoRows.reduce((s, r) => s + (r.vlTotal1 || 0), 0),
+      pago: pagoRows.reduce((s, r) => s + (r.valorPago || 0), 0),
+    };
   }, [filtered, dateFrom, dateTo]);
 
   const periodFrom = dateFrom ? new Date(dateFrom + "T00:00:00") : null;
@@ -234,6 +232,10 @@ function ConferenciaPage() {
               <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm">
                 <div className="text-muted-foreground">
                   <span className="font-medium text-foreground">{filtered.length}</span> registros
+                  <span className="ml-2 text-xs">
+                    (<span className="font-medium text-foreground">{new Set(filtered.filter((r) => r.orcamento).map((r) => r.orcamento)).size}</span> orçamentos únicos ·{" "}
+                    <span className="font-medium text-foreground">{new Set(filtered.filter((r) => r.requisicao).map((r) => String(r.requisicao))).size}</span> requisições únicas)
+                  </span>
                 </div>
                 <div className="flex flex-wrap gap-4">
                   <div className="text-muted-foreground">

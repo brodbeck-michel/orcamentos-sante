@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Toaster } from "sonner";
 import { Search, TrendingUp, AlertCircle, Users as UsersIcon } from "lucide-react";
-import { loadOrcamentos, OrcamentoRow, fmtBRLFull, fmtInt } from "@/lib/orcamento";
+import { loadOrcamentos, OrcamentoRow, fmtBRLFull, fmtInt, dedupeByRequisicao, maxValorPagoByRequisicao } from "@/lib/orcamento";
 import { useAuth } from "@/lib/auth";
 import { AppHeader } from "@/components/AppHeader";
 
@@ -59,11 +59,14 @@ function BuscaAtivaPage() {
   const rows = data?.rows ?? [];
 
   const pendentesAll: Pendente[] = useMemo(() => {
-    return rows
+    // 1 linha por REQUISIÇÃO usando MAX(valor_pago). Pendência = MAX = 0.
+    const reqRows = rows.filter((r) => r.requisicao != null && String(r.requisicao).trim() !== "");
+    const uniq = dedupeByRequisicao(reqRows);
+    const maxMap = maxValorPagoByRequisicao(reqRows);
+    return uniq
       .filter((r) => {
-        const hasReq = r.requisicao != null && String(r.requisicao).trim() !== "";
-        const semPagto = !r.valorPago || r.valorPago === 0 || !r.dataPagamento;
-        return hasReq && semPagto;
+        const max = maxMap.get(String(r.requisicao)) ?? 0;
+        return max <= 0;
       })
       .map((r) => ({ ...r, diasAberto: r.data ? diasEntre(r.data) : 0 }))
       .sort((a, b) => b.diasAberto - a.diasAberto || b.vlTotal1 - a.vlTotal1);
@@ -101,10 +104,12 @@ function BuscaAtivaPage() {
     const total = pendentes.length;
     const valor = pendentes.reduce((s, r) => s + (r.vlTotal1 || 0), 0);
     const ticket = total > 0 ? valor / total : 0;
-    const totalReqs = rows.filter((r) => r.requisicao != null && String(r.requisicao).trim() !== "").length;
-    const convertidos = rows.filter(
-      (r) => r.requisicao != null && String(r.requisicao).trim() !== "" && (r.valorPago > 0 || !!r.dataPagamento),
-    ).length;
+    // Distinct requisições + conversão por MAX(valor_pago) > 0.
+    const reqRows = rows.filter((r) => r.requisicao != null && String(r.requisicao).trim() !== "");
+    const maxMap = maxValorPagoByRequisicao(reqRows);
+    const totalReqs = maxMap.size;
+    let convertidos = 0;
+    maxMap.forEach((v) => { if (v > 0) convertidos += 1; });
     const conversao = totalReqs > 0 ? (convertidos / totalReqs) * 100 : 0;
     const taxaPendencia = totalReqs > 0 ? ((totalReqs - convertidos) / totalReqs) * 100 : 0;
     return { total, valor, ticket, conversao, taxaPendencia };
@@ -117,13 +122,15 @@ function BuscaAtivaPage() {
 
   const porAtendente = useMemo(() => {
     const map = new Map<string, { qtd: number; valor: number; total: number; convertidos: number }>();
-    rows.forEach((r) => {
-      const hasReq = r.requisicao != null && String(r.requisicao).trim() !== "";
-      if (!hasReq) return;
+    // 1 entrada por REQUISIÇÃO usando MAX(valor_pago).
+    const reqRows = rows.filter((r) => r.requisicao != null && String(r.requisicao).trim() !== "");
+    const uniq = dedupeByRequisicao(reqRows);
+    const maxMap = maxValorPagoByRequisicao(reqRows);
+    uniq.forEach((r) => {
       const k = r.usuario;
       const cur = map.get(k) ?? { qtd: 0, valor: 0, total: 0, convertidos: 0 };
       cur.total += 1;
-      if (r.valorPago > 0 || !!r.dataPagamento) cur.convertidos += 1;
+      if ((maxMap.get(String(r.requisicao)) ?? 0) > 0) cur.convertidos += 1;
       map.set(k, cur);
     });
     pendentes.forEach((r) => {

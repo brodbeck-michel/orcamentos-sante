@@ -23,6 +23,8 @@ import {
   fmtInt,
   monthKey,
   monthLabel,
+  dedupeByOrcamento,
+  dedupeByRequisicao,
 } from "@/lib/orcamento";
 import {
   TrendingUp,
@@ -129,7 +131,10 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
     });
   }, [rows, dateFrom, dateTo, convenioFilter]);
 
-  const filtered = baseFiltered;
+  // Deduplicated views — see lib/orcamento.ts. We always count and sum on
+  // these, never on the raw row arrays, so duplicated lines of the same
+  // ORÇAMENTO / REQUISIÇÃO never inflate KPIs or charts.
+  const filteredUniqOrc = useMemo(() => dedupeByOrcamento(baseFiltered), [baseFiltered]);
 
   // Rows whose PAYMENT date falls in the selected period (and convenio).
   // Used for any "recebido/valor pago" aggregation so the period reflects
@@ -147,6 +152,9 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
     });
   }, [rows, dateFrom, dateTo, convenioFilter]);
 
+  // Dedupe pagamentos by REQUISIÇÃO using MAX(valor_pago).
+  const pagosFilteredUniq = useMemo(() => dedupeByRequisicao(pagosFiltered), [pagosFiltered]);
+
   // Previous-period delta for "Total orçado": compare with the immediately
   // preceding window of the same length (using the same convenio filter).
   const prevPeriodDelta = useMemo(() => {
@@ -157,9 +165,11 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
     const spanMs = to.getTime() - from.getTime();
     const prevTo = new Date(from.getTime() - 1);
     const prevFrom = new Date(prevTo.getTime() - spanMs);
+    // Always dedupe by orçamento before summing so we don't double-count.
+    const uniqRows = dedupeByOrcamento(rows);
     let curTotal = 0;
     let prevTotal = 0;
-    rows.forEach((r) => {
+    uniqRows.forEach((r) => {
       if (!r.data) return;
       if (convenioFilter !== "all" && r.convenioPrincipal !== convenioFilter) return;
       const t = r.data.getTime();
@@ -170,20 +180,23 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
     return ((curTotal - prevTotal) / prevTotal) * 100;
   }, [rows, dateFrom, dateTo, convenioFilter]);
 
-  // KPIs (base totals ignore scope so both numbers are always visible)
+  // KPIs — always computed on deduplicated rows.
   const kpis = useMemo(() => {
-    const total = baseFiltered.reduce((s, r) => s + r.total, 0);
-    const totalCount = baseFiltered.length;
-    const reqValue = baseFiltered.reduce((s, r) => s + r.valorRequisicao, 0);
-    const reqCount = baseFiltered.reduce((s, r) => (r.convertido ? s + 1 : s), 0);
-    const pagoValue = pagosFiltered.reduce((s, r) => s + r.valorPago, 0);
-    const pagoCount = pagosFiltered.length;
+    const total = filteredUniqOrc.reduce((s, r) => s + r.total, 0);
+    const totalCount = filteredUniqOrc.length; // distinct ORÇAMENTOS
+    // Distinct REQUISIÇÕES dentro do período/convênio
+    const reqUniq = dedupeByRequisicao(baseFiltered);
+    const reqCount = reqUniq.length;
+    const reqValue = reqUniq.reduce((s, r) => s + (r.valorRequisicao || 0), 0);
+    // Pagamentos: MAX(valor_pago) por requisição
+    const pagoValue = pagosFilteredUniq.reduce((s, r) => s + r.valorPago, 0);
+    const pagoCount = pagosFilteredUniq.length;
     const taxaReq = total ? (reqValue / total) * 100 : 0;
     const taxaPago = total ? (pagoValue / total) * 100 : 0;
-    const count = filtered.length;
-    const scopeTotal = filtered.reduce((s, r) => s + r.total, 0);
+    const count = totalCount;
+    const scopeTotal = total;
     const avg = count ? scopeTotal / count : 0;
-    const usuarios = new Set(filtered.map((r) => r.usuario)).size;
+    const usuarios = new Set(filteredUniqOrc.map((r) => r.usuario)).size;
     const ticketMedio = pagoCount ? pagoValue / pagoCount : 0;
     const conversaoQtd = totalCount ? (pagoCount / totalCount) * 100 : 0;
     const participacaoPago = total ? (pagoValue / total) * 100 : 0;
@@ -194,18 +207,28 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
       count, avg, usuarios, scopeTotal,
       ticketMedio, conversaoQtd, participacaoPago,
     };
-  }, [baseFiltered, filtered, pagosFiltered]);
+  }, [filteredUniqOrc, baseFiltered, pagosFilteredUniq]);
 
   // Monthly trend
   const monthly = useMemo(() => {
     const map = new Map<string, { mes: string; total: number; requisicao: number; pago: number; qtd: number }>();
-    rows.forEach((r) => {
+    // Dedupe before aggregating — orçamento/requisição não devem repetir.
+    const uniqOrc = dedupeByOrcamento(rows);
+    const uniqReq = dedupeByRequisicao(rows);
+    uniqOrc.forEach((r) => {
       if (r.data) {
         const k = monthKey(r.data);
         const e = map.get(k) ?? { mes: k, total: 0, requisicao: 0, pago: 0, qtd: 0 };
         e.total += r.total;
-        e.requisicao += r.valorRequisicao;
         e.qtd += 1;
+        map.set(k, e);
+      }
+    });
+    uniqReq.forEach((r) => {
+      if (r.data) {
+        const k = monthKey(r.data);
+        const e = map.get(k) ?? { mes: k, total: 0, requisicao: 0, pago: 0, qtd: 0 };
+        e.requisicao += r.valorRequisicao || 0;
         map.set(k, e);
       }
       if (r.dataPagamento && r.valorPago > 0) {
@@ -232,25 +255,25 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
   // By user
   const byUser = useMemo(() => {
     const map = new Map<string, { usuario: string; total: number; qtd: number; pago: number; qtdPago: number }>();
-    filtered.forEach((r) => {
+    filteredUniqOrc.forEach((r) => {
       const e = map.get(r.usuario) ?? { usuario: r.usuario, total: 0, qtd: 0, pago: 0, qtdPago: 0 };
       e.total += r.total;
       e.qtd += 1;
       map.set(r.usuario, e);
     });
-    pagosFiltered.forEach((r) => {
+    pagosFilteredUniq.forEach((r) => {
       const e = map.get(r.usuario) ?? { usuario: r.usuario, total: 0, qtd: 0, pago: 0, qtdPago: 0 };
       e.pago += r.valorPago;
       e.qtdPago += 1;
       map.set(r.usuario, e);
     });
     return [...map.values()].sort((a, b) => b.pago - a.pago);
-  }, [filtered, pagosFiltered]);
+  }, [filteredUniqOrc, pagosFilteredUniq]);
 
   // By convenio
   const byConvenio = useMemo(() => {
     const map = new Map<string, { convenio: string; total: number; pago: number; qtd: number; qtdPago: number }>();
-    filtered.forEach((r) => {
+    filteredUniqOrc.forEach((r) => {
       const e = map.get(r.convenioPrincipal) ?? {
         convenio: r.convenioPrincipal,
         total: 0,
@@ -262,7 +285,7 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
       e.qtd += 1;
       map.set(r.convenioPrincipal, e);
     });
-    pagosFiltered.forEach((r) => {
+    pagosFilteredUniq.forEach((r) => {
       const e = map.get(r.convenioPrincipal) ?? {
         convenio: r.convenioPrincipal,
         total: 0,
@@ -275,7 +298,7 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
       map.set(r.convenioPrincipal, e);
     });
     return [...map.values()].sort((a, b) => b.pago - a.pago);
-  }, [filtered, pagosFiltered]);
+  }, [filteredUniqOrc, pagosFilteredUniq]);
 
   const topConvenios = byConvenio.slice(0, 6);
   const outrosPago = byConvenio.slice(6).reduce((s, c) => s + c.pago, 0);
@@ -390,10 +413,11 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
   const userMonthly = useMemo(() => {
     const months = monthly.map((m) => m.mes);
     const topUsers = byUser.slice(0, 5).map((u) => u.usuario);
+    const uniqReq = dedupeByRequisicao(rows);
     return months.map((m) => {
       const row: Record<string, number | string> = { label: monthLabel(m) };
       topUsers.forEach((u) => (row[u] = 0));
-      rows.forEach((r) => {
+      uniqReq.forEach((r) => {
         if (!r.dataPagamento || monthKey(r.dataPagamento) !== m) return;
         if (topUsers.includes(r.usuario))
           row[r.usuario] = (row[r.usuario] as number) + r.valorPago;
