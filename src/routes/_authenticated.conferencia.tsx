@@ -232,6 +232,10 @@ function ConferenciaPage() {
               <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm">
                 <div className="text-muted-foreground">
                   <span className="font-medium text-foreground">{filtered.length}</span> registros
+                  <span className="ml-2 text-xs">
+                    (<span className="font-medium text-foreground">{new Set(filtered.filter((r) => r.orcamento).map((r) => r.orcamento)).size}</span> orçamentos únicos ·{" "}
+                    <span className="font-medium text-foreground">{new Set(filtered.filter((r) => r.requisicao).map((r) => String(r.requisicao))).size}</span> requisições únicas)
+                  </span>
                 </div>
                 <div className="flex flex-wrap gap-4">
                   <div className="text-muted-foreground">
