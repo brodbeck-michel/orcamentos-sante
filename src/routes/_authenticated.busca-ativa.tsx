@@ -5,6 +5,7 @@ import { Search, TrendingUp, AlertCircle, Users as UsersIcon } from "lucide-reac
 import { loadOrcamentos, OrcamentoRow, fmtBRLFull, fmtInt, dedupeByRequisicao, maxValorPagoByRequisicao } from "@/lib/orcamento";
 import { useAuth } from "@/lib/auth";
 import { AppHeader } from "@/components/AppHeader";
+import { useGlobalFilters } from "@/lib/globalFilters";
 
 export const Route = createFileRoute("/_authenticated/busca-ativa")({
   head: () => ({
@@ -48,10 +49,12 @@ function BuscaAtivaPage() {
     if (!auth.loading && auth.isAtendente) navigate({ to: "/vendas", replace: true });
   }, [auth.loading, auth.isAtendente, navigate]);
 
-  const [dateFrom, setDateFrom] = useState<string>("");
-  const [dateTo, setDateTo] = useState<string>("");
-  const [convenioFilter, setConvenioFilter] = useState<string>("all");
-  const [atendenteFilter, setAtendenteFilter] = useState<string>("all");
+  const gf = useGlobalFilters();
+  const { dateFrom, dateTo, convenio: convenioFilter, atendente: atendenteFilter } = gf;
+  const setDateFrom = gf.setDateFrom;
+  const setDateTo = gf.setDateTo;
+  const setConvenioFilter = gf.setConvenio;
+  const setAtendenteFilter = gf.setAtendente;
   const [faixaFilter, setFaixaFilter] = useState<"all" | "0-7" | "8-15" | "16-30" | "30+">("all");
 
   if (auth.isAtendente) return null;
