@@ -192,23 +192,48 @@ function VendasPage() {
     return Array.from(map.values()).sort((a, b) => a.data.localeCompare(b.data));
   }, [filtered]);
 
-  const summary = useMemo(() => {
-    const now = new Date();
-    const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-    const month = vendas.filter((v) => v.data_venda.startsWith(ym));
-    const monthSum = month.reduce((s, v) => s + Number(v.valor), 0);
-    const byAt = new Map<string, number>();
-    month.forEach((v) => byAt.set(v.atendente, (byAt.get(v.atendente) ?? 0) + Number(v.valor)));
-    let topAt = "—";
-    let topVal = 0;
-    byAt.forEach((val, k) => {
-      if (val > topVal) {
-        topVal = val;
-        topAt = k;
-      }
+  // Resumo por atendente do PERÍODO FILTRADO (filtered)
+  const resumoAtend = useMemo(() => {
+    const map = new Map<string, { atendente: string; exames: number; checkup: number }>();
+    filtered.forEach((v) => {
+      const cur = map.get(v.atendente) ?? { atendente: v.atendente, exames: 0, checkup: 0 };
+      cur[v.tipo] += Number(v.valor);
+      map.set(v.atendente, cur);
     });
-    return { monthSum, count: vendas.length, topAt, topVal };
-  }, [vendas]);
+    const list = Array.from(map.values()).map((r) => {
+      const comExames = (r.exames * pctExames) / 100;
+      const comCheckup = (r.checkup * pctCheckup) / 100;
+      const total = r.exames + r.checkup;
+      const comTotal = comExames + comCheckup;
+      return { ...r, comExames, comCheckup, total, comTotal };
+    });
+    list.sort((a, b) => b.total - a.total);
+    return list;
+  }, [filtered, pctExames, pctCheckup]);
+
+  const summary = useMemo(() => {
+    const totalPeriodo = filtered.reduce((s, v) => s + Number(v.valor), 0);
+    const top = resumoAtend[0];
+    const comissaoTotal = resumoAtend.reduce((s, r) => s + r.comTotal, 0);
+    return {
+      totalPeriodo,
+      count: filtered.length,
+      topAt: top?.atendente ?? "—",
+      topVal: top?.total ?? 0,
+      comissaoTotal,
+    };
+  }, [filtered, resumoAtend]);
+
+  // Bar chart: comissão por atendente
+  const comissaoBarData = useMemo(
+    () => resumoAtend.map((r) => ({
+      atendente: r.atendente,
+      comExames: Number(r.comExames.toFixed(2)),
+      comCheckup: Number(r.comCheckup.toFixed(2)),
+      comTotal: Number(r.comTotal.toFixed(2)),
+    })),
+    [resumoAtend],
+  );
 
   const fmtDate = (iso: string) => {
     const [y, m, d] = iso.split("-");
