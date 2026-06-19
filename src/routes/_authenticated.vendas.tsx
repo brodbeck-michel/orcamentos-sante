@@ -182,16 +182,6 @@ function VendasPage() {
     return Array.from(map.values()).sort((a, b) => b.exames + b.checkup - (a.exames + a.checkup));
   }, [filtered]);
 
-  const lineData = useMemo(() => {
-    const map = new Map<string, { data: string; exames: number; checkup: number }>();
-    filtered.forEach((v) => {
-      const cur = map.get(v.data_venda) ?? { data: v.data_venda, exames: 0, checkup: 0 };
-      cur[v.tipo] += Number(v.valor);
-      map.set(v.data_venda, cur);
-    });
-    return Array.from(map.values()).sort((a, b) => a.data.localeCompare(b.data));
-  }, [filtered]);
-
   // Resumo por atendente do PERÍODO FILTRADO (filtered)
   const resumoAtend = useMemo(() => {
     const map = new Map<string, { atendente: string; exames: number; checkup: number }>();
