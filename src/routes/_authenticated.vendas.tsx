@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Toaster, toast } from "sonner";
-import { ShoppingBag, Trash2 } from "lucide-react";
+import { ShoppingBag, Trash2, Percent, Trophy, Receipt, Users as UsersIcon, BarChart3 } from "lucide-react";
 import {
-  BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid,
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid,
 } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
@@ -65,6 +65,10 @@ function VendasPage() {
   const [filterAtend, setFilterAtend] = useState("all");
   const [filterFrom, setFilterFrom] = useState("");
   const [filterTo, setFilterTo] = useState("");
+
+  // Commission config (visual-only, never persisted)
+  const [pctExames, setPctExames] = useState<number>(1.5);
+  const [pctCheckup, setPctCheckup] = useState<number>(1.5);
 
   // Attendant names from atendentes table (active only)
   const [attendantsDb, setAttendantsDb] = useState<string[]>([]);
@@ -178,33 +182,48 @@ function VendasPage() {
     return Array.from(map.values()).sort((a, b) => b.exames + b.checkup - (a.exames + a.checkup));
   }, [filtered]);
 
-  const lineData = useMemo(() => {
-    const map = new Map<string, { data: string; exames: number; checkup: number }>();
+  // Resumo por atendente do PERÍODO FILTRADO (filtered)
+  const resumoAtend = useMemo(() => {
+    const map = new Map<string, { atendente: string; exames: number; checkup: number }>();
     filtered.forEach((v) => {
-      const cur = map.get(v.data_venda) ?? { data: v.data_venda, exames: 0, checkup: 0 };
+      const cur = map.get(v.atendente) ?? { atendente: v.atendente, exames: 0, checkup: 0 };
       cur[v.tipo] += Number(v.valor);
-      map.set(v.data_venda, cur);
+      map.set(v.atendente, cur);
     });
-    return Array.from(map.values()).sort((a, b) => a.data.localeCompare(b.data));
-  }, [filtered]);
+    const list = Array.from(map.values()).map((r) => {
+      const comExames = (r.exames * pctExames) / 100;
+      const comCheckup = (r.checkup * pctCheckup) / 100;
+      const total = r.exames + r.checkup;
+      const comTotal = comExames + comCheckup;
+      return { ...r, comExames, comCheckup, total, comTotal };
+    });
+    list.sort((a, b) => b.total - a.total);
+    return list;
+  }, [filtered, pctExames, pctCheckup]);
 
   const summary = useMemo(() => {
-    const now = new Date();
-    const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-    const month = vendas.filter((v) => v.data_venda.startsWith(ym));
-    const monthSum = month.reduce((s, v) => s + Number(v.valor), 0);
-    const byAt = new Map<string, number>();
-    month.forEach((v) => byAt.set(v.atendente, (byAt.get(v.atendente) ?? 0) + Number(v.valor)));
-    let topAt = "—";
-    let topVal = 0;
-    byAt.forEach((val, k) => {
-      if (val > topVal) {
-        topVal = val;
-        topAt = k;
-      }
-    });
-    return { monthSum, count: vendas.length, topAt, topVal };
-  }, [vendas]);
+    const totalPeriodo = filtered.reduce((s, v) => s + Number(v.valor), 0);
+    const top = resumoAtend[0];
+    const comissaoTotal = resumoAtend.reduce((s, r) => s + r.comTotal, 0);
+    return {
+      totalPeriodo,
+      count: filtered.length,
+      topAt: top?.atendente ?? "—",
+      topVal: top?.total ?? 0,
+      comissaoTotal,
+    };
+  }, [filtered, resumoAtend]);
+
+  // Bar chart: comissão por atendente
+  const comissaoBarData = useMemo(
+    () => resumoAtend.map((r) => ({
+      atendente: r.atendente,
+      comExames: Number(r.comExames.toFixed(2)),
+      comCheckup: Number(r.comCheckup.toFixed(2)),
+      comTotal: Number(r.comTotal.toFixed(2)),
+    })),
+    [resumoAtend],
+  );
 
   const fmtDate = (iso: string) => {
     const [y, m, d] = iso.split("-");
@@ -380,25 +399,103 @@ function VendasPage() {
           </TabsContent>
 
           <TabsContent value="relatorios" className="space-y-6">
-            {/* Summary cards */}
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
-                <div className="text-xs uppercase tracking-wider text-muted-foreground">Total no mês</div>
-                <div className="mt-2 text-2xl font-semibold">{fmtBRLFull(summary.monthSum)}</div>
-              </div>
-              <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
-                <div className="text-xs uppercase tracking-wider text-muted-foreground">Total de registros</div>
-                <div className="mt-2 text-2xl font-semibold">{summary.count}</div>
-              </div>
-              <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
-                <div className="text-xs uppercase tracking-wider text-muted-foreground">Top atendente (mês)</div>
-                <div className="mt-2 text-lg font-semibold">{summary.topAt}</div>
-                <div className="text-xs text-muted-foreground">{fmtBRLFull(summary.topVal)}</div>
-              </div>
+            {/* KPIs */}
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <KpiBox icon={<Receipt className="h-4 w-4" />} label="Total de Vendas do Período" value={fmtBRLFull(summary.totalPeriodo)} />
+              <KpiBox icon={<BarChart3 className="h-4 w-4" />} label="Total de Registros" value={String(summary.count)} />
+              <KpiBox icon={<Trophy className="h-4 w-4" />} label="Melhor Atendente" value={summary.topAt} sub={fmtBRLFull(summary.topVal)} />
+              <KpiBox icon={<Percent className="h-4 w-4" />} label="Comissão Total" value={fmtBRLFull(summary.comissaoTotal)} />
             </div>
 
+            {/* Filtros aplicados (informativo) */}
+            <div className="text-xs text-muted-foreground">
+              Os indicadores e tabelas respeitam os filtros aplicados na aba <strong>Registro</strong>
+              {(filterAtend !== "all" || filterFrom || filterTo) && (
+                <> · <span className="text-foreground">
+                  {filterAtend !== "all" && `Atendente: ${filterAtend}`}
+                  {filterFrom && ` · De ${fmtDate(filterFrom)}`}
+                  {filterTo && ` · Até ${fmtDate(filterTo)}`}
+                </span></>
+              )}.
+            </div>
+
+            {/* Config Comissão */}
             <section className="rounded-xl border border-border bg-card p-5 shadow-sm">
-              <h3 className="mb-4 text-sm font-semibold">Valor por atendente (por tipo)</h3>
+              <div className="mb-3 flex items-center gap-2">
+                <Percent className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-semibold">Configuração de Comissão</h3>
+              </div>
+              <p className="mb-4 text-xs text-muted-foreground">
+                Percentuais usados apenas para cálculo visual dos relatórios. Valores históricos das vendas não são alterados.
+              </p>
+              <div className="grid gap-4 sm:grid-cols-2 max-w-md">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Comissão Exames (%)</Label>
+                  <Input type="number" step="0.1" min="0" value={pctExames}
+                    onChange={(e) => setPctExames(Number(e.target.value) || 0)} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Comissão Check-up (%)</Label>
+                  <Input type="number" step="0.1" min="0" value={pctCheckup}
+                    onChange={(e) => setPctCheckup(Number(e.target.value) || 0)} />
+                </div>
+              </div>
+            </section>
+
+            {/* Resumo por atendente */}
+            <section className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+              <div className="px-5 py-3 border-b border-border flex items-center gap-2">
+                <UsersIcon className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-semibold">Resumo por Atendente</h3>
+              </div>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Atendente</TableHead>
+                      <TableHead className="text-right">Total Exames</TableHead>
+                      <TableHead className="text-right">Comissão Exames</TableHead>
+                      <TableHead className="text-right">Total Check-up</TableHead>
+                      <TableHead className="text-right">Comissão Check-up</TableHead>
+                      <TableHead className="text-right">Total Geral</TableHead>
+                      <TableHead className="text-right">Comissão Total</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {resumoAtend.length === 0 ? (
+                      <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">Sem dados no período.</TableCell></TableRow>
+                    ) : resumoAtend.map((r) => (
+                      <TableRow key={r.atendente}>
+                        <TableCell className="font-medium">{r.atendente}</TableCell>
+                        <TableCell className="text-right tabular-nums">{fmtBRLFull(r.exames)}</TableCell>
+                        <TableCell className="text-right tabular-nums text-muted-foreground">{fmtBRLFull(r.comExames)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{fmtBRLFull(r.checkup)}</TableCell>
+                        <TableCell className="text-right tabular-nums text-muted-foreground">{fmtBRLFull(r.comCheckup)}</TableCell>
+                        <TableCell className="text-right tabular-nums font-semibold">{fmtBRLFull(r.total)}</TableCell>
+                        <TableCell className="text-right tabular-nums font-semibold text-primary">{fmtBRLFull(r.comTotal)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                  {resumoAtend.length > 0 && (
+                    <TableFooter>
+                      <TableRow>
+                        <TableCell className="font-medium">Totais</TableCell>
+                        <TableCell className="text-right tabular-nums font-semibold">{fmtBRLFull(resumoAtend.reduce((s, r) => s + r.exames, 0))}</TableCell>
+                        <TableCell className="text-right tabular-nums font-semibold">{fmtBRLFull(resumoAtend.reduce((s, r) => s + r.comExames, 0))}</TableCell>
+                        <TableCell className="text-right tabular-nums font-semibold">{fmtBRLFull(resumoAtend.reduce((s, r) => s + r.checkup, 0))}</TableCell>
+                        <TableCell className="text-right tabular-nums font-semibold">{fmtBRLFull(resumoAtend.reduce((s, r) => s + r.comCheckup, 0))}</TableCell>
+                        <TableCell className="text-right tabular-nums font-semibold">{fmtBRLFull(resumoAtend.reduce((s, r) => s + r.total, 0))}</TableCell>
+                        <TableCell className="text-right tabular-nums font-semibold text-primary">{fmtBRLFull(summary.comissaoTotal)}</TableCell>
+                      </TableRow>
+                    </TableFooter>
+                  )}
+                </Table>
+              </div>
+            </section>
+
+            {/* Gráfico: Faturamento por Atendente */}
+            <section className="rounded-xl border border-border bg-card p-5 shadow-sm">
+              <h3 className="mb-4 text-sm font-semibold">Faturamento por Atendente</h3>
               <div className="h-[320px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={barData}>
@@ -407,32 +504,47 @@ function VendasPage() {
                     <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => fmtBRLFull(Number(v))} width={90} />
                     <Tooltip formatter={(v: number) => fmtBRLFull(Number(v))} />
                     <Legend />
-                    <Bar dataKey="exames" name="Exames" stackId="a" fill="hsl(var(--primary))" />
-                    <Bar dataKey="checkup" name="Check-up" stackId="a" fill="hsl(var(--accent-foreground))" />
+                    <Bar dataKey="exames" name="Exames" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="checkup" name="Check-up" fill="hsl(var(--accent-foreground))" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             </section>
 
+            {/* Gráfico: Comissão por Atendente */}
             <section className="rounded-xl border border-border bg-card p-5 shadow-sm">
-              <h3 className="mb-4 text-sm font-semibold">Vendas diárias (R$)</h3>
+              <h3 className="mb-4 text-sm font-semibold">Comissão por Atendente</h3>
               <div className="h-[320px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={lineData}>
+                  <BarChart data={comissaoBarData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="data" tick={{ fontSize: 11 }} tickFormatter={fmtDate} />
+                    <XAxis dataKey="atendente" tick={{ fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => fmtBRLFull(Number(v))} width={90} />
-                    <Tooltip formatter={(v: number) => fmtBRLFull(Number(v))} labelFormatter={fmtDate} />
+                    <Tooltip formatter={(v: number) => fmtBRLFull(Number(v))} />
                     <Legend />
-                    <Line type="monotone" dataKey="exames" name="Exames" stroke="hsl(var(--primary))" strokeWidth={2} />
-                    <Line type="monotone" dataKey="checkup" name="Check-up" stroke="hsl(var(--accent-foreground))" strokeWidth={2} />
-                  </LineChart>
+                    <Bar dataKey="comExames" name="Comissão Exames" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="comCheckup" name="Comissão Check-up" fill="hsl(var(--accent-foreground))" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="comTotal" name="Comissão Total" fill="hsl(var(--ring))" radius={[4, 4, 0, 0]} />
+                  </BarChart>
                 </ResponsiveContainer>
               </div>
             </section>
           </TabsContent>
         </Tabs>
       </main>
+    </div>
+  );
+}
+
+function KpiBox({ icon, label, value, sub }: { icon: React.ReactNode; label: string; value: string; sub?: string }) {
+  return (
+    <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+      <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground">
+        <span className="text-primary">{icon}</span>
+        {label}
+      </div>
+      <div className="mt-2 text-xl font-semibold text-foreground truncate" title={value}>{value}</div>
+      {sub && <div className="text-xs text-muted-foreground">{sub}</div>}
     </div>
   );
 }
