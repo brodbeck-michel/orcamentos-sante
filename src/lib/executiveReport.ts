@@ -202,15 +202,15 @@ function kpiGrid(
     const row = Math.floor(i / cols);
     const x = 40 + col * (boxW + gap);
     const yy = y + row * (boxH + gap);
-    doc.setFillColor(247, 249, 252);
-    doc.setDrawColor(220, 228, 238);
+    doc.setFillColor(BRAND_SOFT_BG[0], BRAND_SOFT_BG[1], BRAND_SOFT_BG[2]);
+    doc.setDrawColor(BRAND_BORDER[0], BRAND_BORDER[1], BRAND_BORDER[2]);
     doc.roundedRect(x, yy, boxW, boxH, 5, 5, "FD");
     doc.setFontSize(7.5);
     doc.setTextColor(110);
     doc.text(it.label.toUpperCase(), x + 10, yy + 14);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(13);
-    doc.setTextColor(BRAND.r, BRAND.g, BRAND.b);
+    doc.setTextColor(BRAND_DEEP.r, BRAND_DEEP.g, BRAND_DEEP.b);
     doc.text(it.value, x + 10, yy + 34);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(20);
