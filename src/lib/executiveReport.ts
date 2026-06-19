@@ -24,6 +24,16 @@ type Venda = {
   tipo: "exames" | "checkup";
 };
 
+// Normalize attendant names so vendas + orcamentos consolidate on the same row.
+const normName = (s: string | null | undefined) =>
+  (s ?? "").toString().trim().toUpperCase().replace(/\s+/g, " ");
+
+// Cap any conversion ratio at 100% for executive display.
+const capPct = (n: number) => (Number.isFinite(n) ? Math.min(Math.max(n, 0), 100) : 0);
+
+// Minimum sample size to participate in qualitative rankings.
+const MIN_ORC_RANKING = 20;
+
 function readCommissionConfig() {
   const def = { pctOrc: 2, pctExames: 1.5, pctCheckup: 1.5 };
   if (typeof window === "undefined") return def;
@@ -60,6 +70,19 @@ function dateRangeLabel(f: ExecutiveFilters): string {
   return `${f1} a ${f2}`;
 }
 
+// Calculates the equivalent previous period (same length, immediately before dateFrom).
+function previousPeriod(f: ExecutiveFilters): { dateFrom: string; dateTo: string } | null {
+  if (!f.dateFrom || !f.dateTo) return null;
+  const from = new Date(f.dateFrom + "T00:00:00");
+  const to = new Date(f.dateTo + "T00:00:00");
+  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) return null;
+  const days = Math.round((to.getTime() - from.getTime()) / 86400000) + 1;
+  const prevTo = new Date(from); prevTo.setDate(prevTo.getDate() - 1);
+  const prevFrom = new Date(prevTo); prevFrom.setDate(prevFrom.getDate() - (days - 1));
+  const iso = (d: Date) => d.toISOString().slice(0, 10);
+  return { dateFrom: iso(prevFrom), dateTo: iso(prevTo) };
+}
+
 function applyFilters(rows: OrcamentoRow[], f: ExecutiveFilters): OrcamentoRow[] {
   const from = f.dateFrom ? new Date(f.dateFrom + "T00:00:00") : null;
   const to = f.dateTo ? new Date(f.dateTo + "T23:59:59") : null;
@@ -88,7 +111,7 @@ function applyFiltersPagos(rows: OrcamentoRow[], f: ExecutiveFilters): Orcamento
   });
 }
 
-async function fetchVendas(f: ExecutiveFilters): Promise<Venda[]> {
+async function fetchVendas(f: { dateFrom: string; dateTo: string; atendente?: string }): Promise<Venda[]> {
   try {
     let q = supabase.from("vendas").select("atendente,data_venda,valor,tipo");
     if (f.dateFrom) q = q.gte("data_venda", f.dateFrom);
@@ -96,7 +119,8 @@ async function fetchVendas(f: ExecutiveFilters): Promise<Venda[]> {
     const { data } = await q;
     let list = (data as unknown as Venda[]) ?? [];
     if (f.atendente && f.atendente !== "all") {
-      list = list.filter((v) => v.atendente === f.atendente);
+      const want = normName(f.atendente);
+      list = list.filter((v) => normName(v.atendente) === want);
     }
     return list.map((v) => ({ ...v, valor: Number(v.valor) }));
   } catch {
@@ -105,7 +129,11 @@ async function fetchVendas(f: ExecutiveFilters): Promise<Venda[]> {
 }
 
 // ------- Header / footer helpers -------
-const BRAND = { r: 11, g: 78, b: 142 }; // institutional blue
+// Santé institutional green (matches oklch(0.44 0.11 152) in src/styles.css).
+const BRAND = { r: 31, g: 107, b: 72 };
+const BRAND_DEEP = { r: 22, g: 78, b: 53 };
+const BRAND_SOFT_BG: [number, number, number] = [236, 245, 240];
+const BRAND_BORDER: [number, number, number] = [205, 226, 215];
 const SUB = { r: 90, g: 90, b: 90 };
 
 function drawHeader(doc: jsPDF, logo: string | null, f: ExecutiveFilters, pageNumLabel: string) {
@@ -174,21 +202,65 @@ function kpiGrid(
     const row = Math.floor(i / cols);
     const x = 40 + col * (boxW + gap);
     const yy = y + row * (boxH + gap);
-    doc.setFillColor(247, 249, 252);
-    doc.setDrawColor(220, 228, 238);
+    doc.setFillColor(BRAND_SOFT_BG[0], BRAND_SOFT_BG[1], BRAND_SOFT_BG[2]);
+    doc.setDrawColor(BRAND_BORDER[0], BRAND_BORDER[1], BRAND_BORDER[2]);
     doc.roundedRect(x, yy, boxW, boxH, 5, 5, "FD");
     doc.setFontSize(7.5);
     doc.setTextColor(110);
     doc.text(it.label.toUpperCase(), x + 10, yy + 14);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(13);
-    doc.setTextColor(BRAND.r, BRAND.g, BRAND.b);
+    doc.setTextColor(BRAND_DEEP.r, BRAND_DEEP.g, BRAND_DEEP.b);
     doc.text(it.value, x + 10, yy + 34);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(20);
   });
   const rows = Math.ceil(items.length / cols);
   return y + rows * (boxH + gap);
+}
+
+// Highlighted KPI block (used for the commercial result on page 1).
+function kpiBigBlock(
+  doc: jsPDF,
+  y: number,
+  items: { label: string; value: string; sub?: string }[],
+): number {
+  const pageW = doc.internal.pageSize.getWidth();
+  const gap = 10;
+  const cols = items.length || 1;
+  const boxW = (pageW - 80 - gap * (cols - 1)) / cols;
+  const boxH = 78;
+  items.forEach((it, i) => {
+    const x = 40 + i * (boxW + gap);
+    doc.setFillColor(BRAND.r, BRAND.g, BRAND.b);
+    doc.roundedRect(x, y, boxW, boxH, 6, 6, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.text(it.label.toUpperCase(), x + 12, y + 18);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.text(it.value, x + 12, y + 46);
+    if (it.sub) {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.5);
+      doc.text(it.sub, x + 12, y + 64);
+    }
+    doc.setTextColor(20);
+  });
+  return y + boxH + 10;
+}
+
+function variationLabel(curr: number, prev: number, unit: "money" | "pct" = "money"): string {
+  if (!Number.isFinite(prev) || prev === 0) {
+    return "sem período anterior comparável";
+  }
+  const delta = curr - prev;
+  const pct = (delta / Math.abs(prev)) * 100;
+  const arrow = delta >= 0 ? "↑" : "↓";
+  const sign = delta >= 0 ? "+" : "−";
+  const base = unit === "money" ? fmtBRLFull(Math.abs(delta)) : `${Math.abs(delta).toFixed(1)} p.p.`;
+  return `${arrow} ${sign}${Math.abs(pct).toFixed(1)}% (${base}) vs período anterior`;
 }
 
 function paragraph(doc: jsPDF, y: number, text: string, opts?: { size?: number; color?: [number, number, number] }): number {
@@ -210,6 +282,13 @@ export async function generateExecutiveReport(rows: OrcamentoRow[], filters: Exe
   const cfg = readCommissionConfig();
   const vendas = await fetchVendas(filters);
 
+  // Previous period (for executive variation labels only — does NOT change KPIs).
+  const prev = previousPeriod(filters);
+  const prevFilters: ExecutiveFilters | null = prev
+    ? { dateFrom: prev.dateFrom, dateTo: prev.dateTo, convenio: filters.convenio, atendente: filters.atendente }
+    : null;
+  const prevVendas = prev ? await fetchVendas({ dateFrom: prev.dateFrom, dateTo: prev.dateTo, atendente: filters.atendente }) : [];
+
   // ===== Datasets =====
   const baseFiltered = applyFilters(rows, filters);
   const uniqOrc = dedupeByOrcamento(baseFiltered);
@@ -219,15 +298,25 @@ export async function generateExecutiveReport(rows: OrcamentoRow[], filters: Exe
   const totalOrcado = uniqOrc.reduce((s, r) => s + r.total, 0);
   const totalReq = uniqReq.reduce((s, r) => s + (r.valorRequisicao || 0), 0);
   const totalPago = pagosUniq.reduce((s, r) => s + r.valorPago, 0);
-  const taxaConv = uniqOrc.length ? (pagosUniq.length / uniqOrc.length) * 100 : 0;
+  const taxaConv = capPct(uniqOrc.length ? (pagosUniq.length / uniqOrc.length) * 100 : 0);
   const ticketMedio = pagosUniq.length ? totalPago / pagosUniq.length : 0;
   const atendentesAtivos = new Set(uniqOrc.map((r) => r.usuario)).size;
+
+  // Previous-period aggregates (used only for variation labels).
+  let prevOrcado = 0, prevPago = 0, prevConv = 0;
+  if (prevFilters) {
+    const pUniqOrc = dedupeByOrcamento(applyFilters(rows, prevFilters));
+    const pPagos = dedupeByRequisicao(applyFiltersPagos(rows, prevFilters));
+    prevOrcado = pUniqOrc.reduce((s, r) => s + r.total, 0);
+    prevPago = pPagos.reduce((s, r) => s + r.valorPago, 0);
+    prevConv = capPct(pUniqOrc.length ? (pPagos.length / pUniqOrc.length) * 100 : 0);
+  }
 
   // Pendentes: requisições sem pagamento
   const reqsPendentes = uniqReq.filter((r) => !r.pago || (r.valorPago ?? 0) === 0);
   const pendentesCount = reqsPendentes.length;
   const pendentesValor = reqsPendentes.reduce((s, r) => s + (r.valorRequisicao || r.total || 0), 0);
-  const taxaPendencia = uniqReq.length ? (pendentesCount / uniqReq.length) * 100 : 0;
+  const taxaPendencia = capPct(uniqReq.length ? (pendentesCount / uniqReq.length) * 100 : 0);
 
   // Vendas (exames/checkup) — totals
   const totalExames = vendas.filter((v) => v.tipo === "exames").reduce((s, v) => s + v.valor, 0);
@@ -238,28 +327,40 @@ export async function generateExecutiveReport(rows: OrcamentoRow[], filters: Exe
   const comTotal = comOrc + comExames + comCheckup;
   const comPctReceita = totalPago ? (comTotal / totalPago) * 100 : 0;
 
-  // By user (full row for page 2)
+  // Previous-period commissions (for variation).
+  const prevTotalExames = prevVendas.filter((v) => v.tipo === "exames").reduce((s, v) => s + v.valor, 0);
+  const prevTotalCheckup = prevVendas.filter((v) => v.tipo === "checkup").reduce((s, v) => s + v.valor, 0);
+  const prevComTotal = (prevPago * cfg.pctOrc + prevTotalExames * cfg.pctExames + prevTotalCheckup * cfg.pctCheckup) / 100;
+
+  // By user (full row for page 2) — keyed by normalized name so vendas consolidate.
   const userMap = new Map<string, {
     atendente: string; qtdOrc: number; orcado: number; recebido: number; qtdPago: number;
     exames: number; checkup: number;
   }>();
+  const blank = (atendente: string) => ({ atendente, qtdOrc: 0, orcado: 0, recebido: 0, qtdPago: 0, exames: 0, checkup: 0 });
   uniqOrc.forEach((r) => {
-    const e = userMap.get(r.usuario) ?? { atendente: r.usuario, qtdOrc: 0, orcado: 0, recebido: 0, qtdPago: 0, exames: 0, checkup: 0 };
+    const k = normName(r.usuario);
+    const e = userMap.get(k) ?? blank(r.usuario);
     e.qtdOrc += 1; e.orcado += r.total;
-    userMap.set(r.usuario, e);
+    userMap.set(k, e);
   });
   pagosUniq.forEach((r) => {
-    const e = userMap.get(r.usuario) ?? { atendente: r.usuario, qtdOrc: 0, orcado: 0, recebido: 0, qtdPago: 0, exames: 0, checkup: 0 };
+    const k = normName(r.usuario);
+    const e = userMap.get(k) ?? blank(r.usuario);
     e.recebido += r.valorPago; e.qtdPago += 1;
-    userMap.set(r.usuario, e);
+    userMap.set(k, e);
   });
   vendas.forEach((v) => {
-    const e = userMap.get(v.atendente) ?? { atendente: v.atendente, qtdOrc: 0, orcado: 0, recebido: 0, qtdPago: 0, exames: 0, checkup: 0 };
+    const k = normName(v.atendente);
+    const e = userMap.get(k) ?? blank(v.atendente);
     if (v.tipo === "exames") e.exames += v.valor;
     else e.checkup += v.valor;
-    userMap.set(v.atendente, e);
+    userMap.set(k, e);
   });
   const byUser = [...userMap.values()].sort((a, b) => b.recebido - a.recebido);
+
+  // Qualitative rankings require a minimum sample of orçamentos.
+  const eligible = byUser.filter((u) => u.qtdOrc >= MIN_ORC_RANKING);
 
   // By convenio
   const convMap = new Map<string, { convenio: string; qtdOrc: number; recebido: number; qtdPago: number; orcado: number }>();
@@ -278,11 +379,16 @@ export async function generateExecutiveReport(rows: OrcamentoRow[], filters: Exe
   const totalConvPago = byConv.reduce((s, c) => s + c.recebido, 0);
   const top2pct = totalConvPago ? (byConv.slice(0, 2).reduce((s, c) => s + c.recebido, 0) / totalConvPago) * 100 : 0;
 
-  // Highlights
+  // Highlights — top revenue uses ALL users (volume-based, no distortion).
   const topUser = byUser[0];
   const topConv = byConv[0];
-  const bestConv = byUser.length ? [...byUser].filter((u) => u.qtdOrc > 0).sort((a, b) => (b.qtdPago / b.qtdOrc) - (a.qtdPago / a.qtdOrc))[0] : undefined;
-  const bestTicket = byUser.length ? [...byUser].filter((u) => u.qtdPago > 0).sort((a, b) => (b.recebido / b.qtdPago) - (a.recebido / a.qtdPago))[0] : undefined;
+  // Best conversion / ticket only from atendentes with >= MIN_ORC_RANKING orçamentos.
+  const bestConv = eligible.length
+    ? [...eligible].sort((a, b) => (b.qtdPago / b.qtdOrc) - (a.qtdPago / a.qtdOrc))[0]
+    : undefined;
+  const bestTicket = eligible.filter((u) => u.qtdPago > 0).length
+    ? [...eligible].filter((u) => u.qtdPago > 0).sort((a, b) => (b.recebido / b.qtdPago) - (a.recebido / a.qtdPago))[0]
+    : undefined;
 
   // =====================================================================
   // PAGE 1 — RESUMO EXECUTIVO
@@ -290,6 +396,13 @@ export async function generateExecutiveReport(rows: OrcamentoRow[], filters: Exe
   drawHeader(doc, logo, filters, "Página 1 — Resumo Executivo");
 
   let y = 90;
+  y = sectionTitle(doc, y, "Resultado Comercial do Período");
+  y = kpiBigBlock(doc, y, [
+    { label: "Receita Recebida", value: fmtBRLFull(totalPago), sub: prevFilters ? variationLabel(totalPago, prevPago) : undefined },
+    { label: "Total de Comissões", value: fmtBRLFull(comTotal), sub: prevFilters ? variationLabel(comTotal, prevComTotal) : undefined },
+    { label: "Representatividade", value: `${comPctReceita.toFixed(2)}%`, sub: "Comissões sobre Receita" },
+  ]);
+
   y = sectionTitle(doc, y, "Indicadores Gerais");
   y = kpiGrid(doc, y, [
     { label: "Total Orçado", value: fmtBRLFull(totalOrcado) },
@@ -300,29 +413,48 @@ export async function generateExecutiveReport(rows: OrcamentoRow[], filters: Exe
     { label: "Atendentes Ativos", value: fmtInt(atendentesAtivos) },
   ], 3);
 
-  y += 8;
-  y = sectionTitle(doc, y, "Resultado Comercial");
+  if (prevFilters) {
+    y += 4;
+    y = sectionTitle(doc, y, "Comparativo com Período Anterior");
+    const comp: [string, string, string][] = [
+      ["Total Recebido", fmtBRLFull(totalPago), variationLabel(totalPago, prevPago)],
+      ["Total Orçado", fmtBRLFull(totalOrcado), variationLabel(totalOrcado, prevOrcado)],
+      ["Taxa de Conversão", `${taxaConv.toFixed(1)}%`, variationLabel(taxaConv, prevConv, "pct")],
+    ];
+    autoTable(doc, {
+      startY: y,
+      head: [["Indicador", "Período Atual", "Variação vs Período Anterior"]],
+      body: comp,
+      styles: { fontSize: 9, cellPadding: 5 },
+      headStyles: { fillColor: [BRAND.r, BRAND.g, BRAND.b], textColor: 255, fontStyle: "bold" },
+      alternateRowStyles: { fillColor: BRAND_SOFT_BG },
+      columnStyles: { 1: { halign: "right" }, 2: { halign: "left" } },
+      margin: { left: 40, right: 40 },
+    });
+    // @ts-expect-error lastAutoTable injected
+    y = (doc.lastAutoTable?.finalY ?? y) + 14;
+  }
+
+  y += 4;
+  y = sectionTitle(doc, y, "Detalhamento de Comissões");
   y = kpiGrid(doc, y, [
     { label: `Comissão de Orçamentos (${cfg.pctOrc}%)`, value: fmtBRLFull(comOrc) },
     { label: `Comissão de Exames (${cfg.pctExames}%)`, value: fmtBRLFull(comExames) },
     { label: `Comissão de Check-up (${cfg.pctCheckup}%)`, value: fmtBRLFull(comCheckup) },
-    { label: "Total de Comissões", value: fmtBRLFull(comTotal) },
-    { label: "% Comissões sobre Receita", value: `${comPctReceita.toFixed(2)}%` },
-    { label: "Custo Comercial do Período", value: fmtBRLFull(comTotal) },
   ], 3);
 
-  y += 8;
+  y += 6;
   y = sectionTitle(doc, y, "Destaques do Período");
   const destaques = [
     `Atendente com maior faturamento: ${topUser ? `${topUser.atendente} (${fmtBRLFull(topUser.recebido)})` : "—"}`,
     `Convênio com maior faturamento: ${topConv ? `${topConv.convenio} (${fmtBRLFull(topConv.recebido)})` : "—"}`,
-    `Melhor taxa de conversão: ${bestConv && bestConv.qtdOrc ? `${bestConv.atendente} (${((bestConv.qtdPago / bestConv.qtdOrc) * 100).toFixed(1)}%)` : "—"}`,
-    `Melhor ticket médio: ${bestTicket && bestTicket.qtdPago ? `${bestTicket.atendente} (${fmtBRLFull(bestTicket.recebido / bestTicket.qtdPago)})` : "—"}`,
+    `Melhor taxa de conversão: ${bestConv ? `${bestConv.atendente} (${capPct((bestConv.qtdPago / bestConv.qtdOrc) * 100).toFixed(1)}%)` : `— (mínimo de ${MIN_ORC_RANKING} orçamentos)`}`,
+    `Melhor ticket médio: ${bestTicket && bestTicket.qtdPago ? `${bestTicket.atendente} (${fmtBRLFull(bestTicket.recebido / bestTicket.qtdPago)})` : `— (mínimo de ${MIN_ORC_RANKING} orçamentos)`}`,
     `Valor potencial de recuperação: ${fmtBRLFull(pendentesValor)} em ${fmtInt(pendentesCount)} requisição(ões) pendente(s)`,
   ];
   destaques.forEach((d) => { y = paragraph(doc, y, `•  ${d}`); });
 
-  y += 8;
+  y += 6;
   y = sectionTitle(doc, y, "Parecer Executivo");
   const parecer =
     `O período apresentou faturamento recebido de ${fmtBRLFull(totalPago)} com taxa de conversão de ${taxaConv.toFixed(1)}%. ` +
@@ -344,7 +476,7 @@ export async function generateExecutiveReport(rows: OrcamentoRow[], filters: Exe
   y = sectionTitle(doc, y, "Detalhamento por Atendente");
 
   const userRows = byUser.map((u) => {
-    const conv = u.qtdOrc ? (u.qtdPago / u.qtdOrc) * 100 : 0;
+    const conv = capPct(u.qtdOrc ? (u.qtdPago / u.qtdOrc) * 100 : 0);
     const cOrc = (u.recebido * cfg.pctOrc) / 100;
     const cEx = (u.exames * cfg.pctExames) / 100;
     const cCk = (u.checkup * cfg.pctCheckup) / 100;
@@ -369,7 +501,7 @@ export async function generateExecutiveReport(rows: OrcamentoRow[], filters: Exe
     body: userRows,
     styles: { fontSize: 7.5, cellPadding: 3 },
     headStyles: { fillColor: [BRAND.r, BRAND.g, BRAND.b], textColor: 255, fontStyle: "bold", fontSize: 7.5 },
-    alternateRowStyles: { fillColor: [247, 249, 252] },
+    alternateRowStyles: { fillColor: BRAND_SOFT_BG },
     columnStyles: {
       1: { halign: "center" }, 2: { halign: "right" }, 3: { halign: "right" }, 4: { halign: "center" },
       5: { halign: "right" }, 6: { halign: "right" }, 7: { halign: "right" }, 8: { halign: "right" }, 9: { halign: "right" }, 10: { halign: "right" },
@@ -381,7 +513,7 @@ export async function generateExecutiveReport(rows: OrcamentoRow[], filters: Exe
   y = (doc.lastAutoTable?.finalY ?? y) + 16;
 
   y = sectionTitle(doc, y, "Indicadores da Equipe");
-  const bestComissao = [...byUser].sort((a, b) => {
+  const bestComissao = [...eligible].sort((a, b) => {
     const cA = (a.recebido * cfg.pctOrc + a.exames * cfg.pctExames + a.checkup * cfg.pctCheckup) / 100;
     const cB = (b.recebido * cfg.pctOrc + b.exames * cfg.pctExames + b.checkup * cfg.pctCheckup) / 100;
     return cB - cA;
@@ -391,7 +523,7 @@ export async function generateExecutiveReport(rows: OrcamentoRow[], filters: Exe
     : 0;
   y = kpiGrid(doc, y, [
     { label: "Maior Faturamento", value: topUser ? `${topUser.atendente}` : "—" },
-    { label: "Melhor Conversão", value: bestConv && bestConv.qtdOrc ? `${bestConv.atendente} · ${((bestConv.qtdPago / bestConv.qtdOrc) * 100).toFixed(1)}%` : "—" },
+    { label: "Melhor Conversão", value: bestConv ? `${bestConv.atendente} · ${capPct((bestConv.qtdPago / bestConv.qtdOrc) * 100).toFixed(1)}%` : "—" },
     { label: "Maior Ticket Médio", value: bestTicket && bestTicket.qtdPago ? `${bestTicket.atendente}` : "—" },
     { label: "Maior Comissão", value: bestComissao ? `${bestComissao.atendente} · ${fmtBRLFull(comDoBest)}` : "—" },
   ], 2);
@@ -399,11 +531,12 @@ export async function generateExecutiveReport(rows: OrcamentoRow[], filters: Exe
   y += 4;
   y = sectionTitle(doc, y, "Resumo Executivo da Equipe");
   const resumoEquipe =
-    `A equipe é composta por ${fmtInt(byUser.length)} atendente(s) com produção registrada no período. ` +
-    (topUser ? `${topUser.atendente} liderou em volume recebido (${fmtBRLFull(topUser.recebido)}), ` : "") +
-    (bestConv && bestConv.qtdOrc ? `${bestConv.atendente} obteve a melhor taxa de conversão (${((bestConv.qtdPago / bestConv.qtdOrc) * 100).toFixed(1)}%) ` : "") +
-    (bestTicket && bestTicket.qtdPago ? `e ${bestTicket.atendente} apresentou o ticket médio mais elevado (${fmtBRLFull(bestTicket.recebido / bestTicket.qtdPago)}). ` : ". ") +
-    `A massa de comissões da equipe somou ${fmtBRLFull(comTotal)}, representando ${comPctReceita.toFixed(2)}% do recebido.`;
+    `A equipe é composta por ${fmtInt(byUser.length)} atendente(s) com produção registrada no período, ` +
+    `dos quais ${fmtInt(eligible.length)} possuem volume mínimo (${MIN_ORC_RANKING} orçamentos) para participar dos rankings qualitativos. ` +
+    (topUser ? `${topUser.atendente} liderou em volume recebido (${fmtBRLFull(topUser.recebido)})` : "") +
+    (bestConv ? `, ${bestConv.atendente} obteve a melhor taxa de conversão (${capPct((bestConv.qtdPago / bestConv.qtdOrc) * 100).toFixed(1)}%)` : "") +
+    (bestTicket && bestTicket.qtdPago ? ` e ${bestTicket.atendente} apresentou o ticket médio mais elevado (${fmtBRLFull(bestTicket.recebido / bestTicket.qtdPago)}). ` : ". ") +
+    `A massa de comissões da equipe somou ${fmtBRLFull(comTotal)}, representando ${comPctReceita.toFixed(2)}% da receita recebida.`;
   paragraph(doc, y, resumoEquipe);
 
   // =====================================================================
@@ -415,7 +548,7 @@ export async function generateExecutiveReport(rows: OrcamentoRow[], filters: Exe
   y = 90;
   y = sectionTitle(doc, y, "Performance por Convênio");
   const convRows = byConv.slice(0, 20).map((c) => {
-    const conv = c.qtdOrc ? (c.qtdPago / c.qtdOrc) * 100 : 0;
+    const conv = capPct(c.qtdOrc ? (c.qtdPago / c.qtdOrc) * 100 : 0);
     const tk = c.qtdPago ? c.recebido / c.qtdPago : 0;
     return [c.convenio, fmtInt(c.qtdOrc), fmtBRLFull(c.recebido), `${conv.toFixed(1)}%`, fmtBRLFull(tk)];
   });
@@ -425,7 +558,7 @@ export async function generateExecutiveReport(rows: OrcamentoRow[], filters: Exe
     body: convRows,
     styles: { fontSize: 8.5, cellPadding: 4 },
     headStyles: { fillColor: [BRAND.r, BRAND.g, BRAND.b], textColor: 255, fontStyle: "bold" },
-    alternateRowStyles: { fillColor: [247, 249, 252] },
+    alternateRowStyles: { fillColor: BRAND_SOFT_BG },
     columnStyles: { 1: { halign: "center" }, 2: { halign: "right" }, 3: { halign: "center" }, 4: { halign: "right" } },
     margin: { left: 40, right: 40 },
   });
@@ -444,20 +577,37 @@ export async function generateExecutiveReport(rows: OrcamentoRow[], filters: Exe
   y = kpiGrid(doc, y, [
     { label: "Requisições Pendentes", value: fmtInt(pendentesCount) },
     { label: "Valor Potencial de Recuperação", value: fmtBRLFull(pendentesValor) },
-    { label: "Conversão Requisição → Pagamento", value: `${(uniqReq.length ? (pagosUniq.length / uniqReq.length) * 100 : 0).toFixed(1)}%` },
+    { label: "Conversão Requisição → Pagamento", value: `${capPct(uniqReq.length ? (pagosUniq.length / uniqReq.length) * 100 : 0).toFixed(1)}%` },
     { label: "Taxa de Pendência", value: `${taxaPendencia.toFixed(1)}%` },
   ], 4);
 
   y += 4;
-  y = sectionTitle(doc, y, "Alertas de Gestão");
+  y = sectionTitle(doc, y, "Alertas Estratégicos para a Diretoria");
   const alertas: string[] = [];
-  if (top2pct >= 70) alertas.push(`Alta concentração de receita: ${top2pct.toFixed(1)}% vem de apenas 2 convênios. Risco de dependência.`);
-  else if (top2pct >= 50) alertas.push(`Concentração moderada: ${top2pct.toFixed(1)}% do faturamento vem dos 2 maiores convênios.`);
-  if (taxaPendencia >= 30) alertas.push(`Taxa de pendência elevada: ${taxaPendencia.toFixed(1)}% das requisições ainda não foram pagas.`);
-  if (pendentesCount > 0) alertas.push(`${fmtInt(pendentesCount)} requisições pendentes representam ${fmtBRLFull(pendentesValor)} em potencial de recuperação imediata.`);
-  const baixos = byConv.filter((c) => totalConvPago && (c.recebido / totalConvPago) * 100 < 2 && c.recebido > 0);
-  if (baixos.length >= 3) alertas.push(`${fmtInt(baixos.length)} convênios apresentaram participação inferior a 2% no faturamento.`);
-  if (taxaConv < 50 && uniqOrc.length > 0) alertas.push(`Taxa de conversão geral abaixo de 50% (${taxaConv.toFixed(1)}%): há espaço relevante para ações de fechamento.`);
+  // 1) Concentração de receita
+  if (top2pct >= 70) alertas.push(`RISCO ALTO — Concentração de receita: ${top2pct.toFixed(1)}% do faturamento vem dos 2 maiores convênios. Forte dependência comercial.`);
+  else if (top2pct >= 50) alertas.push(`ATENÇÃO — Concentração moderada: ${top2pct.toFixed(1)}% do faturamento vem dos 2 maiores convênios.`);
+  // 2) Queda de faturamento vs período anterior
+  if (prevFilters && prevPago > 0) {
+    const varPct = ((totalPago - prevPago) / prevPago) * 100;
+    if (varPct <= -10) alertas.push(`QUEDA DE FATURAMENTO — Receita recuou ${Math.abs(varPct).toFixed(1)}% frente ao período anterior (${fmtBRLFull(prevPago)} → ${fmtBRLFull(totalPago)}).`);
+    else if (varPct >= 10) alertas.push(`CRESCIMENTO — Receita avançou ${varPct.toFixed(1)}% frente ao período anterior (${fmtBRLFull(prevPago)} → ${fmtBRLFull(totalPago)}).`);
+  }
+  // 3) Queda de conversão
+  if (prevFilters && prevConv > 0) {
+    const dConv = taxaConv - prevConv;
+    if (dConv <= -5) alertas.push(`QUEDA DE CONVERSÃO — Taxa caiu ${Math.abs(dConv).toFixed(1)} p.p. em relação ao período anterior (${prevConv.toFixed(1)}% → ${taxaConv.toFixed(1)}%).`);
+  }
+  // 4) Conversão geral baixa
+  if (taxaConv < 50 && uniqOrc.length > 0) alertas.push(`OPORTUNIDADE DE FECHAMENTO — Taxa de conversão geral em ${taxaConv.toFixed(1)}%, abaixo do patamar de 50%.`);
+  // 5) Pendências elevadas
+  if (taxaPendencia >= 30) alertas.push(`AUMENTO DE PENDÊNCIAS — ${taxaPendencia.toFixed(1)}% das requisições ainda não foram pagas.`);
+  // 6) Potencial de recuperação relevante
+  if (pendentesValor > 0 && totalPago > 0 && pendentesValor / totalPago >= 0.15) {
+    alertas.push(`ALTO POTENCIAL DE RECUPERAÇÃO — ${fmtBRLFull(pendentesValor)} em ${fmtInt(pendentesCount)} requisições pendentes (equivalente a ${((pendentesValor / totalPago) * 100).toFixed(1)}% da receita do período).`);
+  } else if (pendentesValor > 0) {
+    alertas.push(`OPORTUNIDADE DE RECUPERAÇÃO — ${fmtBRLFull(pendentesValor)} em ${fmtInt(pendentesCount)} requisições pendentes de pagamento.`);
+  }
   if (!alertas.length) alertas.push("Nenhum indicador crítico identificado no período analisado.");
   alertas.forEach((a) => { y = paragraph(doc, y, `•  ${a}`); });
 
