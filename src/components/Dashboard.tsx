@@ -41,6 +41,8 @@ import {
   Percent,
 } from "lucide-react";
 import { useGlobalFilters } from "@/lib/globalFilters";
+import { generateExecutiveReport } from "@/lib/executiveReport";
+import { toast } from "sonner";
 
 const CHART_COLORS = [
   "var(--chart-1)",
@@ -459,6 +461,29 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
         <div className="text-right text-xs text-muted-foreground">
           <div><span className="font-medium text-foreground">{fileName}</span></div>
           <div>Importado em {new Date(importedAt).toLocaleString("pt-BR")}</div>
+          <div className="mt-2">
+            <button
+              type="button"
+              onClick={async () => {
+                const t = toast.loading("Gerando Relatório Executivo…");
+                try {
+                  await generateExecutiveReport(rows, {
+                    dateFrom,
+                    dateTo,
+                    convenio: convenioFilter,
+                    atendente: gf.atendente,
+                  });
+                  toast.success("Relatório Executivo gerado com sucesso.", { id: t });
+                } catch (e) {
+                  toast.error("Não foi possível gerar o relatório.", { id: t });
+                  console.error(e);
+                }
+              }}
+              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-xs font-medium text-primary-foreground transition hover:opacity-90"
+            >
+              Exportar Relatório Executivo
+            </button>
+          </div>
         </div>
       </div>
 
