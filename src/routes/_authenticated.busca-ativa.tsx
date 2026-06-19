@@ -362,9 +362,20 @@ function BuscaAtivaPage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               {/* Tabela */}
               <div className="lg:col-span-2 rounded-xl border border-border bg-card overflow-hidden">
-                <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+                <div className="px-4 py-3 border-b border-border flex items-center justify-between gap-3 flex-wrap">
                   <h3 className="text-sm font-semibold text-foreground">Requisições Pendentes de Pagamento</h3>
-                  <span className="text-xs text-muted-foreground">{pendentes.length} registros</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-muted-foreground">{pendentes.length} registros</span>
+                    <button
+                      type="button"
+                      onClick={handleGerarPDF}
+                      disabled={pendentes.length === 0}
+                      className="inline-flex items-center gap-1.5 rounded-md bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <FileDown className="h-3.5 w-3.5" />
+                      Gerar Relatório PDF
+                    </button>
+                  </div>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
