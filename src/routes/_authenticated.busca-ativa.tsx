@@ -1,7 +1,10 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Toaster } from "sonner";
-import { Search, TrendingUp, AlertCircle, Users as UsersIcon } from "lucide-react";
+import { Search, TrendingUp, AlertCircle, Users as UsersIcon, FileDown } from "lucide-react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import logoSante from "@/assets/logo-sante.png.asset.json";
 import { loadOrcamentos, OrcamentoRow, fmtBRLFull, fmtInt, dedupeByRequisicao, maxValorPagoByRequisicao } from "@/lib/orcamento";
 import { useAuth } from "@/lib/auth";
 import { AppHeader } from "@/components/AppHeader";
@@ -170,6 +173,109 @@ function BuscaAtivaPage() {
   }, [pendentes, kpis, porAtendente]);
 
   const fmtDate = (d: Date | null) => (d ? d.toLocaleDateString("pt-BR") : "—");
+
+  const handleGerarPDF = async () => {
+    const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const now = new Date();
+    const dataGer = now.toLocaleDateString("pt-BR");
+    const horaGer = now.toLocaleTimeString("pt-BR");
+
+    // Header w/ logo
+    try {
+      const res = await fetch(logoSante.url);
+      const blob = await res.blob();
+      const dataUrl = await new Promise<string>((resolve) => {
+        const r = new FileReader();
+        r.onloadend = () => resolve(r.result as string);
+        r.readAsDataURL(blob);
+      });
+      doc.addImage(dataUrl, "PNG", 40, 28, 70, 32);
+    } catch { /* ignore */ }
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.setTextColor(20, 20, 20);
+    doc.text("Relatório de Busca Ativa", 130, 46);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(90, 90, 90);
+    doc.text("Requisições Pendentes de Pagamento", 130, 62);
+
+    doc.setFontSize(9);
+    doc.text(`Gerado em ${dataGer} às ${horaGer}`, pageW - 40, 40, { align: "right" });
+    doc.text(`Registros: ${pendentes.length}`, pageW - 40, 54, { align: "right" });
+
+    // Filtros
+    const filtros: string[] = [];
+    if (dateFrom || dateTo) filtros.push(`Período: ${dateFrom ? new Date(dateFrom + "T00:00:00").toLocaleDateString("pt-BR") : "—"} a ${dateTo ? new Date(dateTo + "T00:00:00").toLocaleDateString("pt-BR") : "—"}`);
+    if (convenioFilter !== "all") filtros.push(`Convênio: ${convenioFilter}`);
+    if (atendenteFilter !== "all") filtros.push(`Atendente: ${atendenteFilter}`);
+    if (faixaFilter !== "all") filtros.push(`Dias em aberto: ${faixaFilter}`);
+    const filtrosTxt = filtros.length ? filtros.join("  ·  ") : "Sem filtros aplicados";
+
+    doc.setDrawColor(220);
+    doc.line(40, 78, pageW - 40, 78);
+    doc.setFontSize(9);
+    doc.setTextColor(70);
+    doc.text(`Filtros: ${filtrosTxt}`, 40, 94);
+
+    // Resumo executivo
+    const boxY = 108;
+    const boxW = (pageW - 80 - 24) / 3;
+    const kpisPdf = [
+      { label: "Total de Requisições Pendentes", value: fmtInt(kpis.total) },
+      { label: "Valor Potencial de Recuperação", value: fmtBRLFull(kpis.valor) },
+      { label: "Ticket Médio das Pendências", value: fmtBRLFull(kpis.ticket) },
+    ];
+    kpisPdf.forEach((k, i) => {
+      const x = 40 + i * (boxW + 12);
+      doc.setFillColor(247, 248, 250);
+      doc.setDrawColor(225);
+      doc.roundedRect(x, boxY, boxW, 50, 6, 6, "FD");
+      doc.setFontSize(8);
+      doc.setTextColor(110);
+      doc.text(k.label.toUpperCase(), x + 12, boxY + 18);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(13);
+      doc.setTextColor(20);
+      doc.text(k.value, x + 12, boxY + 38);
+      doc.setFont("helvetica", "normal");
+    });
+
+    // Tabela
+    autoTable(doc, {
+      startY: boxY + 68,
+      head: [["Requisição", "Data", "Paciente", "Convênio", "Atendente", "Vl. Orçado", "Dias", "Status"]],
+      body: pendentes.map((r) => [
+        r.requisicao ?? "—",
+        fmtDate(r.data),
+        r.paciente ?? "—",
+        r.convenioPrincipal,
+        r.usuario,
+        fmtBRLFull(r.vlTotal1),
+        String(r.diasAberto),
+        "Pendente de Pagamento",
+      ]),
+      styles: { fontSize: 8, cellPadding: 4 },
+      headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: "bold" },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      columnStyles: {
+        5: { halign: "right" },
+        6: { halign: "center" },
+      },
+      margin: { left: 40, right: 40 },
+      didDrawPage: () => {
+        const pageNum = doc.getNumberOfPages();
+        doc.setFontSize(8);
+        doc.setTextColor(140);
+        doc.text(`Lab Santé · Busca Ativa · Página ${pageNum}`, pageW / 2, pageH - 20, { align: "center" });
+      },
+    });
+
+    doc.save(`busca-ativa-${now.toISOString().slice(0, 10)}.pdf`);
+  };
 
   return (
     <div className="min-h-screen" style={{ background: "var(--gradient-soft)" }}>
