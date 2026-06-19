@@ -47,6 +47,37 @@ const todayISO = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
+const COMMISSION_STORAGE_KEY = "commissionConfig.v1";
+const COMMISSION_EVENT = "commission-config-change";
+const DEFAULT_PCT = 1.5;
+
+function readCommissionConfig(): { pctExames: number; pctCheckup: number } {
+  if (typeof window === "undefined") return { pctExames: DEFAULT_PCT, pctCheckup: DEFAULT_PCT };
+  try {
+    const raw = window.localStorage.getItem(COMMISSION_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return {
+        pctExames: Number.isFinite(parsed?.pctExames) ? Number(parsed.pctExames) : DEFAULT_PCT,
+        pctCheckup: Number.isFinite(parsed?.pctCheckup) ? Number(parsed.pctCheckup) : DEFAULT_PCT,
+      };
+    }
+  } catch {
+    // ignore
+  }
+  return { pctExames: DEFAULT_PCT, pctCheckup: DEFAULT_PCT };
+}
+
+function writeCommissionConfig(cfg: { pctExames: number; pctCheckup: number }) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(COMMISSION_STORAGE_KEY, JSON.stringify(cfg));
+    window.dispatchEvent(new CustomEvent(COMMISSION_EVENT));
+  } catch {
+    // ignore
+  }
+}
+
 function VendasPage() {
   const auth = useAuth();
   const [vendas, setVendas] = useState<Venda[]>([]);
@@ -67,8 +98,20 @@ function VendasPage() {
   const [filterTo, setFilterTo] = useState("");
 
   // Commission config (visual-only, never persisted)
-  const [pctExames, setPctExames] = useState<number>(1.5);
-  const [pctCheckup, setPctCheckup] = useState<number>(1.5);
+  const initialCommission = readCommissionConfig();
+  const [pctExames, setPctExames] = useState<number>(initialCommission.pctExames);
+  const [pctCheckup, setPctCheckup] = useState<number>(initialCommission.pctCheckup);
+
+  // Persist commission config (debounced) and notify other views.
+  useEffect(() => {
+    const current = readCommissionConfig();
+    if (current.pctExames === pctExames && current.pctCheckup === pctCheckup) return;
+    const t = window.setTimeout(() => {
+      writeCommissionConfig({ pctExames, pctCheckup });
+      toast.success("Configurações de comissão atualizadas com sucesso.");
+    }, 600);
+    return () => window.clearTimeout(t);
+  }, [pctExames, pctCheckup]);
 
   // Attendant names from atendentes table (active only)
   const [attendantsDb, setAttendantsDb] = useState<string[]>([]);
