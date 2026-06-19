@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Toaster, toast } from "sonner";
 import { ShoppingBag, Trash2, Percent, Trophy, Receipt, Users as UsersIcon, BarChart3 } from "lucide-react";
 import {
-  BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid,
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid,
 } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
