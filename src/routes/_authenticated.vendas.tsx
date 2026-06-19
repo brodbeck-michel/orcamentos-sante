@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Toaster, toast } from "sonner";
-import { ShoppingBag, Trash2 } from "lucide-react";
+import { ShoppingBag, Trash2, Percent, Trophy, Receipt, Users as UsersIcon, BarChart3 } from "lucide-react";
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid,
 } from "recharts";
@@ -65,6 +65,10 @@ function VendasPage() {
   const [filterAtend, setFilterAtend] = useState("all");
   const [filterFrom, setFilterFrom] = useState("");
   const [filterTo, setFilterTo] = useState("");
+
+  // Commission config (visual-only, never persisted)
+  const [pctExames, setPctExames] = useState<number>(1.5);
+  const [pctCheckup, setPctCheckup] = useState<number>(1.5);
 
   // Attendant names from atendentes table (active only)
   const [attendantsDb, setAttendantsDb] = useState<string[]>([]);
