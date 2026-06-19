@@ -98,8 +98,20 @@ function VendasPage() {
   const [filterTo, setFilterTo] = useState("");
 
   // Commission config (visual-only, never persisted)
-  const [pctExames, setPctExames] = useState<number>(1.5);
-  const [pctCheckup, setPctCheckup] = useState<number>(1.5);
+  const initialCommission = readCommissionConfig();
+  const [pctExames, setPctExames] = useState<number>(initialCommission.pctExames);
+  const [pctCheckup, setPctCheckup] = useState<number>(initialCommission.pctCheckup);
+
+  // Persist commission config (debounced) and notify other views.
+  useEffect(() => {
+    const current = readCommissionConfig();
+    if (current.pctExames === pctExames && current.pctCheckup === pctCheckup) return;
+    const t = window.setTimeout(() => {
+      writeCommissionConfig({ pctExames, pctCheckup });
+      toast.success("Configurações de comissão atualizadas com sucesso.");
+    }, 600);
+    return () => window.clearTimeout(t);
+  }, [pctExames, pctCheckup]);
 
   // Attendant names from atendentes table (active only)
   const [attendantsDb, setAttendantsDb] = useState<string[]>([]);
