@@ -268,7 +268,12 @@ function kpiGridDetailed(
 function kpiBigBlock(
   doc: jsPDF,
   y: number,
-  items: { label: string; value: string; sub?: string }[],
+  items: {
+    label: string;
+    value: string;
+    sub?: string;
+    variation?: { curr: number; prev: number; unit: "rel" | "pp" };
+  }[],
 ): number {
   const pageW = doc.internal.pageSize.getWidth();
   const gap = 10;
@@ -286,7 +291,33 @@ function kpiBigBlock(
     doc.setFont("helvetica", "bold");
     doc.setFontSize(18);
     doc.text(it.value, x + 12, y + 46);
-    if (it.sub) {
+    if (it.variation) {
+      // Render badge directly on the dark card using inverted colors.
+      const v = it.variation;
+      doc.setTextColor(255, 255, 255);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      if (!Number.isFinite(v.prev) || v.prev === 0) {
+        doc.setFont("helvetica", "italic");
+        doc.text("sem comparativo", x + 12, y + 64);
+      } else {
+        const delta = v.curr - v.prev;
+        const positive = delta > 0.0001;
+        const negative = delta < -0.0001;
+        const size = 5;
+        const ty = y + 64 - 8;
+        doc.setFillColor(255, 255, 255);
+        if (positive) doc.triangle(x + 12, ty + size, x + 12 + size, ty + size, x + 12 + size / 2, ty, "F");
+        else if (negative) doc.triangle(x + 12, ty, x + 12 + size, ty, x + 12 + size / 2, ty + size, "F");
+        else doc.rect(x + 12, ty + 1, size, size - 1, "F");
+        const sign = positive ? "+" : negative ? "-" : "";
+        const txt =
+          v.unit === "pp"
+            ? `${sign}${Math.abs(delta).toFixed(1)} p.p. vs anterior`
+            : `${sign}${Math.abs((delta / Math.abs(v.prev)) * 100).toFixed(1)}% vs anterior`;
+        doc.text(txt, x + 12 + size + 5, y + 64);
+      }
+    } else if (it.sub) {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8.5);
       doc.text(it.sub, x + 12, y + 64);
