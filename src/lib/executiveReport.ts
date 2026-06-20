@@ -709,10 +709,10 @@ export async function generateExecutiveReport(rows: OrcamentoRow[], filters: Exe
   paragraph(doc, y, resumoEquipe);
 
   // =====================================================================
-  // PAGE 3 — CONVÊNIOS E OPORTUNIDADES
+  // PAGE 3 — CONVÊNIOS E DEPENDÊNCIA COMERCIAL
   // =====================================================================
   doc.addPage();
-  drawHeader(doc, logo, filters, "Página 3 — Convênios e Oportunidades");
+  drawHeader(doc, logo, filters, "Página 3 — Convênios e Dependência Comercial");
 
   y = 90;
   y = sectionTitle(doc, y, "Performance por Convênio");
@@ -722,16 +722,30 @@ export async function generateExecutiveReport(rows: OrcamentoRow[], filters: Exe
   const convRows = byConvComReceita.slice(0, 20).map((c) => {
     const conv = capPct(c.qtdOrc ? (c.qtdPago / c.qtdOrc) * 100 : 0);
     const tk = c.qtdPago ? c.recebido / c.qtdPago : 0;
-    return [c.convenio, fmtInt(c.qtdOrc), fmtBRLFull(c.recebido), `${conv.toFixed(1)}%`, fmtBRLFull(tk)];
+    const pctRec = totalConvPago ? (c.recebido / totalConvPago) * 100 : 0;
+    return [
+      c.convenio,
+      fmtInt(c.qtdOrc),
+      fmtBRLFull(c.recebido),
+      `${pctRec.toFixed(1)}%`,
+      `${conv.toFixed(1)}%`,
+      fmtBRLFull(tk),
+    ];
   });
   autoTable(doc, {
     startY: y,
-    head: [["Convênio", "Qtd. Orç.", "Valor Recebido", "Conversão", "Ticket Médio"]],
+    head: [["Convênio", "Qtd. Orç.", "Valor Recebido", "% Receita", "Conversão", "Ticket Médio"]],
     body: convRows,
     styles: { fontSize: 8.5, cellPadding: 4 },
     headStyles: { fillColor: [BRAND.r, BRAND.g, BRAND.b], textColor: 255, fontStyle: "bold" },
     alternateRowStyles: { fillColor: BRAND_SOFT_BG },
-    columnStyles: { 1: { halign: "center" }, 2: { halign: "right" }, 3: { halign: "center" }, 4: { halign: "right" } },
+    columnStyles: {
+      1: { halign: "center" },
+      2: { halign: "right" },
+      3: { halign: "center" },
+      4: { halign: "center" },
+      5: { halign: "right" },
+    },
     margin: { left: 40, right: 40 },
   });
   // @ts-expect-error lastAutoTable injected
@@ -751,30 +765,29 @@ export async function generateExecutiveReport(rows: OrcamentoRow[], filters: Exe
     const pageW = doc.internal.pageSize.getWidth();
     const top1 = byConvComReceita[0];
     const top2 = byConvComReceita[1];
-    // Card principal (faixa institucional)
-    const cardH = 70;
+    // Card principal (faixa institucional) com semáforo de risco
+    const cardH = 78;
     doc.setFillColor(BRAND.r, BRAND.g, BRAND.b);
     doc.roundedRect(40, y, pageW - 80, cardH, 6, 6, "F");
     doc.setTextColor(255, 255, 255);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(28);
-    doc.text(`${top2pct.toFixed(1)}%`, 56, y + 42);
+    doc.setFontSize(30);
+    doc.text(`${top2pct.toFixed(1)}%`, 56, y + 46);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
-    doc.text("da receita concentrada nos 2 maiores convênios", 56, y + 58);
-    // Badge de risco
-    let badge: { text: string; color: [number, number, number] } | null = null;
-    if (top2pct >= 80) badge = { text: "RISCO ELEVADO DE DEPENDÊNCIA COMERCIAL", color: [185, 28, 28] };
-    else if (top2pct >= 70) badge = { text: "ALTA DEPENDÊNCIA COMERCIAL", color: [217, 119, 6] };
-    if (badge) {
-      doc.setFillColor(badge.color[0], badge.color[1], badge.color[2]);
-      const bw = doc.getTextWidth(badge.text) + 18;
-      doc.roundedRect(pageW - 40 - bw - 16, y + 18, bw, 22, 4, 4, "F");
-      doc.setTextColor(255, 255, 255);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(9);
-      doc.text(badge.text, pageW - 40 - bw - 16 + 9, y + 33);
-    }
+    doc.text("da receita concentrada nos 2 maiores convênios", 56, y + 64);
+    // Semáforo gerencial (Baixa / Moderada / Alta)
+    let badge: { text: string; color: [number, number, number] };
+    if (top2pct > 70) badge = { text: "ALTA DEPENDÊNCIA COMERCIAL", color: [185, 28, 28] };
+    else if (top2pct >= 50) badge = { text: "DEPENDÊNCIA MODERADA", color: [217, 119, 6] };
+    else badge = { text: "BAIXA DEPENDÊNCIA", color: [22, 128, 72] };
+    doc.setFillColor(badge.color[0], badge.color[1], badge.color[2]);
+    const bw = doc.getTextWidth(badge.text) + 18;
+    doc.roundedRect(pageW - 40 - bw - 16, y + 22, bw, 22, 4, 4, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.text(badge.text, pageW - 40 - bw - 16 + 9, y + 37);
     doc.setTextColor(20);
     y += cardH + 10;
     // Dois sub-cards com 1º e 2º convênio
@@ -791,46 +804,107 @@ export async function generateExecutiveReport(rows: OrcamentoRow[], filters: Exe
     });
     if (subs.length) y = kpiGridDetailed(doc, y, subs, subs.length);
     else y += 4;
+
+    // Recomendação automática conforme nível de dependência
+    const recomendacao =
+      top2pct > 70
+        ? "A carteira apresenta forte dependência dos principais convênios. Recomenda-se ampliar a diversificação comercial e reduzir o risco de concentração."
+        : top2pct >= 50
+          ? "Há dependência moderada dos principais convênios. Recomenda-se monitorar a evolução e iniciar ações de diversificação preventiva."
+          : "A carteira apresenta boa distribuição de receita entre convênios, indicando baixo risco de concentração comercial.";
+    y = paragraph(doc, y, recomendacao, { size: 9.5 });
+    y += 6;
+
+    // Top 5 Convênios por Receita (ranking visual)
+    y = sectionTitle(doc, y, "Top 5 Convênios por Receita");
+    const top5 = byConvComReceita.slice(0, 5);
+    {
+      const rowH = 22;
+      top5.forEach((c, i) => {
+        const yy = y + i * (rowH + 4);
+        doc.setFillColor(BRAND_SOFT_BG[0], BRAND_SOFT_BG[1], BRAND_SOFT_BG[2]);
+        doc.setDrawColor(BRAND_BORDER[0], BRAND_BORDER[1], BRAND_BORDER[2]);
+        doc.roundedRect(40, yy, pageW - 80, rowH, 3, 3, "FD");
+        // Posição (círculo)
+        doc.setFillColor(BRAND.r, BRAND.g, BRAND.b);
+        doc.circle(56, yy + rowH / 2, 8, "F");
+        doc.setTextColor(255, 255, 255);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9);
+        doc.text(`${i + 1}`, 56, yy + rowH / 2 + 3, { align: "center" });
+        // Nome
+        doc.setTextColor(BRAND_DEEP.r, BRAND_DEEP.g, BRAND_DEEP.b);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+        doc.text(c.convenio, 72, yy + rowH / 2 + 3);
+        // Valor + % à direita
+        const pctR = totalConvPago ? (c.recebido / totalConvPago) * 100 : 0;
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9.5);
+        doc.setTextColor(60, 60, 60);
+        doc.text(`${fmtBRLFull(c.recebido)}  ·  ${pctR.toFixed(1)}%`, pageW - 56, yy + rowH / 2 + 3, { align: "right" });
+      });
+      doc.setTextColor(20);
+      y += top5.length * (rowH + 4) + 6;
+    }
+
+    // Insight executivo dos convênios
+    y = sectionTitle(doc, y, "Insight Executivo");
+    const insight = top1
+      ? `Os dois principais convênios representam ${top2pct.toFixed(1)}% da receita do período, indicando ${top2pct > 70 ? "alta" : top2pct >= 50 ? "moderada" : "baixa"} concentração comercial. O principal convênio foi ${top1.convenio}, responsável por ${(totalConvPago ? (top1.recebido / totalConvPago) * 100 : 0).toFixed(1)}% do faturamento.`
+      : "Não há convênios com receita registrada no período.";
+    paragraph(doc, y, insight);
   }
 
-  // ----- Busca Ativa (destaque executivo) -----
+  // =====================================================================
+  // PAGE 4 — BUSCA ATIVA, ALERTAS E CONCLUSÃO GERENCIAL
+  // =====================================================================
+  doc.addPage();
+  drawHeader(doc, logo, filters, "Página 4 — Busca Ativa, Alertas e Conclusão");
+
+  y = 90;
+  // ----- Busca Ativa (bloco principal da página) -----
   y = sectionTitle(doc, y, "Busca Ativa — Potencial de Recuperação");
   {
     const pageW = doc.internal.pageSize.getWidth();
-    const cardH = 86;
+    const cardH = 110;
     doc.setFillColor(BRAND_SOFT_BG[0], BRAND_SOFT_BG[1], BRAND_SOFT_BG[2]);
     doc.setDrawColor(BRAND.r, BRAND.g, BRAND.b);
-    doc.setLineWidth(1.2);
+    doc.setLineWidth(1.4);
     doc.roundedRect(40, y, pageW - 80, cardH, 6, 6, "FD");
     doc.setLineWidth(0.2);
-    // Valor de recuperação em destaque
+    // Valor de recuperação em destaque (fonte grande, verde institucional)
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(8);
+    doc.setFontSize(8.5);
     doc.setTextColor(BRAND.r, BRAND.g, BRAND.b);
-    doc.text("VALOR POTENCIAL DE RECUPERAÇÃO", 56, y + 20);
+    doc.text("VALOR POTENCIAL DE RECUPERAÇÃO", 56, y + 22);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(26);
+    doc.setFontSize(34);
     doc.setTextColor(BRAND_DEEP.r, BRAND_DEEP.g, BRAND_DEEP.b);
-    doc.text(fmtBRLFull(pendentesValor), 56, y + 50);
+    doc.text(fmtBRLFull(pendentesValor), 56, y + 60);
     doc.setFont("helvetica", "italic");
-    doc.setFontSize(9);
+    doc.setFontSize(9.5);
     doc.setTextColor(80, 80, 80);
-    doc.text("Potencial de recuperação financeira identificado no período.", 56, y + 70);
+    doc.text("Receita potencial que ainda pode ser convertida através da busca ativa.", 56, y + 82);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(110, 110, 110);
+    doc.text(`${fmtInt(pendentesCount)} requisições aguardam conversão.`, 56, y + 98);
     // Mini KPIs à direita
     const miniX = pageW / 2 + 30;
     const items = [
       { label: "Requisições Pendentes", value: fmtInt(pendentesCount) },
-      { label: "Conv. Requisição → Pagamento", value: `${convReqPag.toFixed(1)}%` },
+      { label: "Conv. Requisição -> Pagamento", value: `${convReqPag.toFixed(1)}%` },
       { label: "Taxa de Pendência", value: `${taxaPendencia.toFixed(1)}%` },
     ];
     items.forEach((it, i) => {
-      const yy = y + 18 + i * 22;
+      const yy = y + 26 + i * 26;
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
       doc.setTextColor(110, 110, 110);
       doc.text(it.label.toUpperCase(), miniX, yy);
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(11);
+      doc.setFontSize(13);
       doc.setTextColor(BRAND_DEEP.r, BRAND_DEEP.g, BRAND_DEEP.b);
       doc.text(it.value, pageW - 56, yy, { align: "right" });
     });
@@ -840,6 +914,16 @@ export async function generateExecutiveReport(rows: OrcamentoRow[], filters: Exe
   if (!reqCoerente) {
     y = paragraph(doc, y, `Observação: divergência entre requisições pagas (${fmtInt(reqsPagasCount)}) e pendentes (${fmtInt(pendentesCount)}) em relação ao total único (${fmtInt(uniqReq.length)}). Verificar base de dados.`, { size: 8.5, color: [120, 60, 60] });
   }
+
+  // ----- Oportunidade Financeira (card executivo) -----
+  y = sectionTitle(doc, y, "Oportunidade Financeira");
+  y = kpiBigBlock(doc, y, [
+    {
+      label: "Oportunidade de Recuperação Identificada",
+      value: fmtBRLFull(pendentesValor),
+      sub: `${fmtInt(pendentesCount)} requisições aguardam conversão`,
+    },
+  ]);
 
   // ----- Alertas Estratégicos (cards coloridos) -----
   y += 2;
