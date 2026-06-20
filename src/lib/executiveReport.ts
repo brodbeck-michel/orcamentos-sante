@@ -219,11 +219,61 @@ function kpiGrid(
   return y + rows * (boxH + gap);
 }
 
+// KPI card with a smaller sub-line under the main value (used for "Destaques").
+function kpiGridDetailed(
+  doc: jsPDF,
+  y: number,
+  items: { label: string; value: string; sub?: string; icon?: string }[],
+  cols = 4,
+): number {
+  const pageW = doc.internal.pageSize.getWidth();
+  const gap = 10;
+  const boxW = (pageW - 80 - gap * (cols - 1)) / cols;
+  const boxH = 70;
+  items.forEach((it, i) => {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const x = 40 + col * (boxW + gap);
+    const yy = y + row * (boxH + gap);
+    doc.setFillColor(BRAND_SOFT_BG[0], BRAND_SOFT_BG[1], BRAND_SOFT_BG[2]);
+    doc.setDrawColor(BRAND_BORDER[0], BRAND_BORDER[1], BRAND_BORDER[2]);
+    doc.roundedRect(x, yy, boxW, boxH, 5, 5, "FD");
+    // Top label
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.5);
+    doc.setTextColor(BRAND.r, BRAND.g, BRAND.b);
+    doc.text(it.label.toUpperCase(), x + 10, yy + 14);
+    // Value (truncated to one line)
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(BRAND_DEEP.r, BRAND_DEEP.g, BRAND_DEEP.b);
+    const valueLines = doc.splitTextToSize(it.value, boxW - 20) as string[];
+    doc.text(valueLines[0] ?? "—", x + 10, yy + 36);
+    // Sub-line
+    if (it.sub) {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(60, 60, 60);
+      const subLines = doc.splitTextToSize(it.sub, boxW - 20) as string[];
+      doc.text(subLines[0] ?? "", x + 10, yy + 54);
+    }
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(20);
+  });
+  const rows = Math.ceil(items.length / cols);
+  return y + rows * (boxH + gap);
+}
+
 // Highlighted KPI block (used for the commercial result on page 1).
 function kpiBigBlock(
   doc: jsPDF,
   y: number,
-  items: { label: string; value: string; sub?: string }[],
+  items: {
+    label: string;
+    value: string;
+    sub?: string;
+    variation?: { curr: number; prev: number; unit: "rel" | "pp" };
+  }[],
 ): number {
   const pageW = doc.internal.pageSize.getWidth();
   const gap = 10;
@@ -241,7 +291,33 @@ function kpiBigBlock(
     doc.setFont("helvetica", "bold");
     doc.setFontSize(18);
     doc.text(it.value, x + 12, y + 46);
-    if (it.sub) {
+    if (it.variation) {
+      // Render badge directly on the dark card using inverted colors.
+      const v = it.variation;
+      doc.setTextColor(255, 255, 255);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      if (!Number.isFinite(v.prev) || v.prev === 0) {
+        doc.setFont("helvetica", "italic");
+        doc.text("sem comparativo", x + 12, y + 64);
+      } else {
+        const delta = v.curr - v.prev;
+        const positive = delta > 0.0001;
+        const negative = delta < -0.0001;
+        const size = 5;
+        const ty = y + 64 - 8;
+        doc.setFillColor(255, 255, 255);
+        if (positive) doc.triangle(x + 12, ty + size, x + 12 + size, ty + size, x + 12 + size / 2, ty, "F");
+        else if (negative) doc.triangle(x + 12, ty, x + 12 + size, ty, x + 12 + size / 2, ty + size, "F");
+        else doc.rect(x + 12, ty + 1, size, size - 1, "F");
+        const sign = positive ? "+" : negative ? "-" : "";
+        const txt =
+          v.unit === "pp"
+            ? `${sign}${Math.abs(delta).toFixed(1)} p.p. vs anterior`
+            : `${sign}${Math.abs((delta / Math.abs(v.prev)) * 100).toFixed(1)}% vs anterior`;
+        doc.text(txt, x + 12 + size + 5, y + 64);
+      }
+    } else if (it.sub) {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8.5);
       doc.text(it.sub, x + 12, y + 64);
@@ -257,10 +333,60 @@ function variationLabel(curr: number, prev: number, unit: "money" | "pct" = "mon
   }
   const delta = curr - prev;
   const pct = (delta / Math.abs(prev)) * 100;
-  const arrow = delta >= 0 ? "↑" : "↓";
-  const sign = delta >= 0 ? "+" : "−";
+  const sign = delta >= 0 ? "+" : "-";
   const base = unit === "money" ? fmtBRLFull(Math.abs(delta)) : `${Math.abs(delta).toFixed(1)} p.p.`;
-  return `${arrow} ${sign}${Math.abs(pct).toFixed(1)}% (${base}) vs período anterior`;
+  return `${sign}${Math.abs(pct).toFixed(1)}% (${base}) vs período anterior`;
+}
+
+// Variation badge: draws a colored triangle (▲/▼) + signed value.
+// `unit`: 'rel' uses relative % change; 'pp' uses absolute delta in p.p.
+function drawVarBadge(
+  doc: jsPDF,
+  x: number,
+  baselineY: number,
+  curr: number,
+  prev: number,
+  unit: "rel" | "pp",
+) {
+  if (!Number.isFinite(prev) || prev === 0) {
+    doc.setTextColor(120, 120, 120);
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(8.5);
+    doc.text("sem comparativo", x, baselineY);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(20);
+    return;
+  }
+  const delta = curr - prev;
+  const positive = delta > 0.0001;
+  const negative = delta < -0.0001;
+  const color: [number, number, number] = positive
+    ? [22, 128, 72]
+    : negative
+      ? [185, 28, 28]
+      : [110, 110, 110];
+  // Glyph (triangle/square) drawn as vector so it works in any font.
+  doc.setFillColor(color[0], color[1], color[2]);
+  const size = 5;
+  const ty = baselineY - 8;
+  if (positive) {
+    doc.triangle(x, ty + size, x + size, ty + size, x + size / 2, ty, "F");
+  } else if (negative) {
+    doc.triangle(x, ty, x + size, ty, x + size / 2, ty + size, "F");
+  } else {
+    doc.rect(x, ty + 1, size, size - 1, "F");
+  }
+  doc.setTextColor(color[0], color[1], color[2]);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  const sign = positive ? "+" : negative ? "-" : "";
+  const value =
+    unit === "pp"
+      ? `${sign}${Math.abs(delta).toFixed(1)} p.p.`
+      : `${sign}${Math.abs((delta / Math.abs(prev)) * 100).toFixed(1)}%`;
+  doc.text(value, x + size + 5, baselineY);
+  doc.setTextColor(20);
+  doc.setFont("helvetica", "normal");
 }
 
 function paragraph(doc: jsPDF, y: number, text: string, opts?: { size?: number; color?: [number, number, number] }): number {
@@ -317,6 +443,13 @@ export async function generateExecutiveReport(rows: OrcamentoRow[], filters: Exe
   const pendentesCount = reqsPendentes.length;
   const pendentesValor = reqsPendentes.reduce((s, r) => s + (r.valorRequisicao || r.total || 0), 0);
   const taxaPendencia = capPct(uniqReq.length ? (pendentesCount / uniqReq.length) * 100 : 0);
+
+  // Conversion Requisição → Pagamento: share of THIS period's unique requisições
+  // that were actually paid. Uses the same uniqReq base as pendentes for coherence.
+  const reqsPagasCount = uniqReq.filter((r) => r.pago && (r.valorPago ?? 0) > 0).length;
+  const convReqPag = capPct(uniqReq.length ? (reqsPagasCount / uniqReq.length) * 100 : 0);
+  // Sanity check: pendentes + pagas should equal uniqReq. If not, surface a note.
+  const reqCoerente = pendentesCount + reqsPagasCount === uniqReq.length;
 
   // Vendas (exames/checkup) — totals
   const totalExames = vendas.filter((v) => v.tipo === "exames").reduce((s, v) => s + v.valor, 0);
@@ -398,8 +531,16 @@ export async function generateExecutiveReport(rows: OrcamentoRow[], filters: Exe
   let y = 90;
   y = sectionTitle(doc, y, "Resultado Comercial do Período");
   y = kpiBigBlock(doc, y, [
-    { label: "Receita Recebida", value: fmtBRLFull(totalPago), sub: prevFilters ? variationLabel(totalPago, prevPago) : undefined },
-    { label: "Total de Comissões", value: fmtBRLFull(comTotal), sub: prevFilters ? variationLabel(comTotal, prevComTotal) : undefined },
+    {
+      label: "Receita Recebida",
+      value: fmtBRLFull(totalPago),
+      variation: prevFilters ? { curr: totalPago, prev: prevPago, unit: "rel" } : undefined,
+    },
+    {
+      label: "Total de Comissões",
+      value: fmtBRLFull(comTotal),
+      variation: prevFilters ? { curr: comTotal, prev: prevComTotal, unit: "rel" } : undefined,
+    },
     { label: "Representatividade", value: `${comPctReceita.toFixed(2)}%`, sub: "Comissões sobre Receita" },
   ]);
 
@@ -416,20 +557,32 @@ export async function generateExecutiveReport(rows: OrcamentoRow[], filters: Exe
   if (prevFilters) {
     y += 4;
     y = sectionTitle(doc, y, "Comparativo com Período Anterior");
-    const comp: [string, string, string][] = [
-      ["Total Recebido", fmtBRLFull(totalPago), variationLabel(totalPago, prevPago)],
-      ["Total Orçado", fmtBRLFull(totalOrcado), variationLabel(totalOrcado, prevOrcado)],
-      ["Taxa de Conversão", `${taxaConv.toFixed(1)}%`, variationLabel(taxaConv, prevConv, "pct")],
+    const compRows: { label: string; atual: string; curr: number; prev: number; unit: "rel" | "pp" }[] = [
+      { label: "Total Recebido", atual: fmtBRLFull(totalPago), curr: totalPago, prev: prevPago, unit: "rel" },
+      { label: "Total Orçado", atual: fmtBRLFull(totalOrcado), curr: totalOrcado, prev: prevOrcado, unit: "rel" },
+      { label: "Total de Comissões", atual: fmtBRLFull(comTotal), curr: comTotal, prev: prevComTotal, unit: "rel" },
+      { label: "Taxa de Conversão", atual: `${taxaConv.toFixed(1)}%`, curr: taxaConv, prev: prevConv, unit: "pp" },
     ];
     autoTable(doc, {
       startY: y,
-      head: [["Indicador", "Período Atual", "Variação vs Período Anterior"]],
-      body: comp,
-      styles: { fontSize: 9, cellPadding: 5 },
+      head: [["Indicador", "Atual", "Variação"]],
+      body: compRows.map((r) => [r.label, r.atual, ""]),
+      styles: { fontSize: 10, cellPadding: 7 },
       headStyles: { fillColor: [BRAND.r, BRAND.g, BRAND.b], textColor: 255, fontStyle: "bold" },
       alternateRowStyles: { fillColor: BRAND_SOFT_BG },
-      columnStyles: { 1: { halign: "right" }, 2: { halign: "left" } },
+      columnStyles: {
+        0: { fontStyle: "bold" },
+        1: { halign: "right", fontStyle: "bold" },
+        2: { halign: "left", cellWidth: 180 },
+      },
       margin: { left: 40, right: 40 },
+      didDrawCell: (data) => {
+        if (data.section !== "body" || data.column.index !== 2) return;
+        const row = compRows[data.row.index];
+        if (!row) return;
+        const baselineY = data.cell.y + data.cell.height / 2 + 3;
+        drawVarBadge(doc, data.cell.x + 8, baselineY, row.curr, row.prev, row.unit);
+      },
     });
     // @ts-expect-error lastAutoTable injected
     y = (doc.lastAutoTable?.finalY ?? y) + 14;
@@ -445,14 +598,30 @@ export async function generateExecutiveReport(rows: OrcamentoRow[], filters: Exe
 
   y += 6;
   y = sectionTitle(doc, y, "Destaques do Período");
-  const destaques = [
-    `Atendente com maior faturamento: ${topUser ? `${topUser.atendente} (${fmtBRLFull(topUser.recebido)})` : "—"}`,
-    `Convênio com maior faturamento: ${topConv ? `${topConv.convenio} (${fmtBRLFull(topConv.recebido)})` : "—"}`,
-    `Melhor taxa de conversão: ${bestConv ? `${bestConv.atendente} (${capPct((bestConv.qtdPago / bestConv.qtdOrc) * 100).toFixed(1)}%)` : `— (mínimo de ${MIN_ORC_RANKING} orçamentos)`}`,
-    `Melhor ticket médio: ${bestTicket && bestTicket.qtdPago ? `${bestTicket.atendente} (${fmtBRLFull(bestTicket.recebido / bestTicket.qtdPago)})` : `— (mínimo de ${MIN_ORC_RANKING} orçamentos)`}`,
-    `Valor potencial de recuperação: ${fmtBRLFull(pendentesValor)} em ${fmtInt(pendentesCount)} requisição(ões) pendente(s)`,
-  ];
-  destaques.forEach((d) => { y = paragraph(doc, y, `•  ${d}`); });
+  y = kpiGridDetailed(doc, y, [
+    {
+      label: "Melhor Atendente",
+      value: topUser ? topUser.atendente : "—",
+      sub: topUser ? fmtBRLFull(topUser.recebido) : "Sem dados no período",
+    },
+    {
+      label: "Melhor Convênio",
+      value: topConv ? topConv.convenio : "—",
+      sub: topConv ? fmtBRLFull(topConv.recebido) : "Sem dados no período",
+    },
+    {
+      label: "Melhor Conversão",
+      value: bestConv ? bestConv.atendente : "—",
+      sub: bestConv
+        ? `${capPct((bestConv.qtdPago / bestConv.qtdOrc) * 100).toFixed(1)}% de conversão`
+        : `Mínimo de ${MIN_ORC_RANKING} orçamentos`,
+    },
+    {
+      label: "Potencial de Recuperação",
+      value: fmtBRLFull(pendentesValor),
+      sub: `${fmtInt(pendentesCount)} requisições pendentes`,
+    },
+  ], 4);
 
   y += 6;
   y = sectionTitle(doc, y, "Parecer Executivo");
@@ -577,9 +746,12 @@ export async function generateExecutiveReport(rows: OrcamentoRow[], filters: Exe
   y = kpiGrid(doc, y, [
     { label: "Requisições Pendentes", value: fmtInt(pendentesCount) },
     { label: "Valor Potencial de Recuperação", value: fmtBRLFull(pendentesValor) },
-    { label: "Conversão Requisição → Pagamento", value: `${capPct(uniqReq.length ? (pagosUniq.length / uniqReq.length) * 100 : 0).toFixed(1)}%` },
+    { label: "Conversão Requisição → Pagamento", value: `${convReqPag.toFixed(1)}%` },
     { label: "Taxa de Pendência", value: `${taxaPendencia.toFixed(1)}%` },
   ], 4);
+  if (!reqCoerente) {
+    y = paragraph(doc, y, `Observação: divergência entre requisições pagas (${fmtInt(reqsPagasCount)}) e pendentes (${fmtInt(pendentesCount)}) em relação ao total único (${fmtInt(uniqReq.length)}). Verificar base de dados.`, { size: 8.5, color: [120, 60, 60] });
+  }
 
   y += 4;
   y = sectionTitle(doc, y, "Alertas Estratégicos para a Diretoria");
