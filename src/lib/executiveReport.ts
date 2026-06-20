@@ -716,7 +716,10 @@ export async function generateExecutiveReport(rows: OrcamentoRow[], filters: Exe
 
   y = 90;
   y = sectionTitle(doc, y, "Performance por Convênio");
-  const convRows = byConv.slice(0, 20).map((c) => {
+  // Hide convênios sem receita recebida no período (ruído visual para a diretoria).
+  const byConvComReceita = byConv.filter((c) => (c.recebido ?? 0) > 0);
+  const convOcultos = byConv.length - byConvComReceita.length;
+  const convRows = byConvComReceita.slice(0, 20).map((c) => {
     const conv = capPct(c.qtdOrc ? (c.qtdPago / c.qtdOrc) * 100 : 0);
     const tk = c.qtdPago ? c.recebido / c.qtdPago : 0;
     return [c.convenio, fmtInt(c.qtdOrc), fmtBRLFull(c.recebido), `${conv.toFixed(1)}%`, fmtBRLFull(tk)];
@@ -733,64 +736,224 @@ export async function generateExecutiveReport(rows: OrcamentoRow[], filters: Exe
   });
   // @ts-expect-error lastAutoTable injected
   y = (doc.lastAutoTable?.finalY ?? y) + 14;
+  // Nota gerencial sob a tabela.
+  {
+    const note = convOcultos > 0
+      ? `Convênios sem receita no período foram ocultados para melhor análise gerencial. (${fmtInt(convOcultos)} ocultado${convOcultos > 1 ? "s" : ""}.)`
+      : "Convênios sem receita no período foram ocultados para melhor análise gerencial.";
+    y = paragraph(doc, y, note, { size: 8.5, color: [110, 110, 110] });
+    y += 4;
+  }
 
-  y = sectionTitle(doc, y, "Análise de Concentração");
-  const top3Txt = top3.length
-    ? top3.map((c, i) => `${i + 1}. ${c.convenio} — ${fmtBRLFull(c.recebido)}`).join("    ")
-    : "—";
-  y = paragraph(doc, y, `Top 3 convênios: ${top3Txt}`);
-  y = paragraph(doc, y, `Participação dos 2 maiores convênios: ${top2pct.toFixed(1)}% do faturamento recebido.`);
+  // ----- Análise de Concentração (bloco executivo) -----
+  y = sectionTitle(doc, y, "Análise de Concentração de Receita");
+  {
+    const pageW = doc.internal.pageSize.getWidth();
+    const top1 = byConvComReceita[0];
+    const top2 = byConvComReceita[1];
+    // Card principal (faixa institucional)
+    const cardH = 70;
+    doc.setFillColor(BRAND.r, BRAND.g, BRAND.b);
+    doc.roundedRect(40, y, pageW - 80, cardH, 6, 6, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(28);
+    doc.text(`${top2pct.toFixed(1)}%`, 56, y + 42);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.text("da receita concentrada nos 2 maiores convênios", 56, y + 58);
+    // Badge de risco
+    let badge: { text: string; color: [number, number, number] } | null = null;
+    if (top2pct >= 80) badge = { text: "RISCO ELEVADO DE DEPENDÊNCIA COMERCIAL", color: [185, 28, 28] };
+    else if (top2pct >= 70) badge = { text: "ALTA DEPENDÊNCIA COMERCIAL", color: [217, 119, 6] };
+    if (badge) {
+      doc.setFillColor(badge.color[0], badge.color[1], badge.color[2]);
+      const bw = doc.getTextWidth(badge.text) + 18;
+      doc.roundedRect(pageW - 40 - bw - 16, y + 18, bw, 22, 4, 4, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.text(badge.text, pageW - 40 - bw - 16 + 9, y + 33);
+    }
+    doc.setTextColor(20);
+    y += cardH + 10;
+    // Dois sub-cards com 1º e 2º convênio
+    const subs: { label: string; value: string; sub?: string }[] = [];
+    if (top1) subs.push({
+      label: "1º Convênio",
+      value: top1.convenio,
+      sub: `${fmtBRLFull(top1.recebido)} · ${(totalConvPago ? (top1.recebido / totalConvPago) * 100 : 0).toFixed(1)}% da receita`,
+    });
+    if (top2) subs.push({
+      label: "2º Convênio",
+      value: top2.convenio,
+      sub: `${fmtBRLFull(top2.recebido)} · ${(totalConvPago ? (top2.recebido / totalConvPago) * 100 : 0).toFixed(1)}% da receita`,
+    });
+    if (subs.length) y = kpiGridDetailed(doc, y, subs, subs.length);
+    else y += 4;
+  }
 
-  y += 6;
-  y = sectionTitle(doc, y, "Busca Ativa");
-  y = kpiGrid(doc, y, [
-    { label: "Requisições Pendentes", value: fmtInt(pendentesCount) },
-    { label: "Valor Potencial de Recuperação", value: fmtBRLFull(pendentesValor) },
-    { label: "Conversão Requisição → Pagamento", value: `${convReqPag.toFixed(1)}%` },
-    { label: "Taxa de Pendência", value: `${taxaPendencia.toFixed(1)}%` },
-  ], 4);
+  // ----- Busca Ativa (destaque executivo) -----
+  y = sectionTitle(doc, y, "Busca Ativa — Potencial de Recuperação");
+  {
+    const pageW = doc.internal.pageSize.getWidth();
+    const cardH = 86;
+    doc.setFillColor(BRAND_SOFT_BG[0], BRAND_SOFT_BG[1], BRAND_SOFT_BG[2]);
+    doc.setDrawColor(BRAND.r, BRAND.g, BRAND.b);
+    doc.setLineWidth(1.2);
+    doc.roundedRect(40, y, pageW - 80, cardH, 6, 6, "FD");
+    doc.setLineWidth(0.2);
+    // Valor de recuperação em destaque
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(BRAND.r, BRAND.g, BRAND.b);
+    doc.text("VALOR POTENCIAL DE RECUPERAÇÃO", 56, y + 20);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(26);
+    doc.setTextColor(BRAND_DEEP.r, BRAND_DEEP.g, BRAND_DEEP.b);
+    doc.text(fmtBRLFull(pendentesValor), 56, y + 50);
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(9);
+    doc.setTextColor(80, 80, 80);
+    doc.text("Potencial de recuperação financeira identificado no período.", 56, y + 70);
+    // Mini KPIs à direita
+    const miniX = pageW / 2 + 30;
+    const items = [
+      { label: "Requisições Pendentes", value: fmtInt(pendentesCount) },
+      { label: "Conv. Requisição → Pagamento", value: `${convReqPag.toFixed(1)}%` },
+      { label: "Taxa de Pendência", value: `${taxaPendencia.toFixed(1)}%` },
+    ];
+    items.forEach((it, i) => {
+      const yy = y + 18 + i * 22;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(110, 110, 110);
+      doc.text(it.label.toUpperCase(), miniX, yy);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(BRAND_DEEP.r, BRAND_DEEP.g, BRAND_DEEP.b);
+      doc.text(it.value, pageW - 56, yy, { align: "right" });
+    });
+    doc.setTextColor(20);
+    y += cardH + 12;
+  }
   if (!reqCoerente) {
     y = paragraph(doc, y, `Observação: divergência entre requisições pagas (${fmtInt(reqsPagasCount)}) e pendentes (${fmtInt(pendentesCount)}) em relação ao total único (${fmtInt(uniqReq.length)}). Verificar base de dados.`, { size: 8.5, color: [120, 60, 60] });
   }
 
-  y += 4;
+  // ----- Alertas Estratégicos (cards coloridos) -----
+  y += 2;
   y = sectionTitle(doc, y, "Alertas Estratégicos para a Diretoria");
-  const alertas: string[] = [];
-  // 1) Concentração de receita
-  if (top2pct >= 70) alertas.push(`RISCO ALTO — Concentração de receita: ${top2pct.toFixed(1)}% do faturamento vem dos 2 maiores convênios. Forte dependência comercial.`);
-  else if (top2pct >= 50) alertas.push(`ATENÇÃO — Concentração moderada: ${top2pct.toFixed(1)}% do faturamento vem dos 2 maiores convênios.`);
-  // 2) Queda de faturamento vs período anterior
+  type AlertSev = "risk" | "warn" | "opp" | "info";
+  const SEV_COLOR: Record<AlertSev, [number, number, number]> = {
+    risk: [185, 28, 28],
+    warn: [217, 119, 6],
+    opp: [22, 128, 72],
+    info: [37, 99, 175],
+  };
+  const SEV_LABEL: Record<AlertSev, string> = {
+    risk: "RISCO ALTO",
+    warn: "ATENÇÃO",
+    opp: "OPORTUNIDADE",
+    info: "INFORMAÇÃO",
+  };
+  const alertas: { sev: AlertSev; title: string; body: string }[] = [];
+  if (top2pct >= 70) alertas.push({ sev: "risk", title: "Concentração de receita elevada", body: `${top2pct.toFixed(1)}% do faturamento recebido vem dos 2 maiores convênios. Forte dependência comercial.` });
+  else if (top2pct >= 50) alertas.push({ sev: "warn", title: "Concentração moderada", body: `${top2pct.toFixed(1)}% do faturamento recebido vem dos 2 maiores convênios.` });
   if (prevFilters && prevPago > 0) {
     const varPct = ((totalPago - prevPago) / prevPago) * 100;
-    if (varPct <= -10) alertas.push(`QUEDA DE FATURAMENTO — Receita recuou ${Math.abs(varPct).toFixed(1)}% frente ao período anterior (${fmtBRLFull(prevPago)} → ${fmtBRLFull(totalPago)}).`);
-    else if (varPct >= 10) alertas.push(`CRESCIMENTO — Receita avançou ${varPct.toFixed(1)}% frente ao período anterior (${fmtBRLFull(prevPago)} → ${fmtBRLFull(totalPago)}).`);
+    if (varPct <= -10) alertas.push({ sev: "risk", title: "Queda de faturamento", body: `Receita recuou ${Math.abs(varPct).toFixed(1)}% frente ao período anterior (${fmtBRLFull(prevPago)} → ${fmtBRLFull(totalPago)}).` });
+    else if (varPct >= 10) alertas.push({ sev: "opp", title: "Crescimento de faturamento", body: `Receita avançou ${varPct.toFixed(1)}% frente ao período anterior (${fmtBRLFull(prevPago)} → ${fmtBRLFull(totalPago)}).` });
   }
-  // 3) Queda de conversão
   if (prevFilters && prevConv > 0) {
     const dConv = taxaConv - prevConv;
-    if (dConv <= -5) alertas.push(`QUEDA DE CONVERSÃO — Taxa caiu ${Math.abs(dConv).toFixed(1)} p.p. em relação ao período anterior (${prevConv.toFixed(1)}% → ${taxaConv.toFixed(1)}%).`);
+    if (dConv <= -5) alertas.push({ sev: "warn", title: "Queda de conversão", body: `Taxa caiu ${Math.abs(dConv).toFixed(1)} p.p. em relação ao período anterior (${prevConv.toFixed(1)}% → ${taxaConv.toFixed(1)}%).` });
   }
-  // 4) Conversão geral baixa
-  if (taxaConv < 50 && uniqOrc.length > 0) alertas.push(`OPORTUNIDADE DE FECHAMENTO — Taxa de conversão geral em ${taxaConv.toFixed(1)}%, abaixo do patamar de 50%.`);
-  // 5) Pendências elevadas
-  if (taxaPendencia >= 30) alertas.push(`AUMENTO DE PENDÊNCIAS — ${taxaPendencia.toFixed(1)}% das requisições ainda não foram pagas.`);
-  // 6) Potencial de recuperação relevante
   if (pendentesValor > 0 && totalPago > 0 && pendentesValor / totalPago >= 0.15) {
-    alertas.push(`ALTO POTENCIAL DE RECUPERAÇÃO — ${fmtBRLFull(pendentesValor)} em ${fmtInt(pendentesCount)} requisições pendentes (equivalente a ${((pendentesValor / totalPago) * 100).toFixed(1)}% da receita do período).`);
-  } else if (pendentesValor > 0) {
-    alertas.push(`OPORTUNIDADE DE RECUPERAÇÃO — ${fmtBRLFull(pendentesValor)} em ${fmtInt(pendentesCount)} requisições pendentes de pagamento.`);
+    alertas.push({ sev: "opp", title: "Alto potencial de recuperação", body: `${fmtBRLFull(pendentesValor)} em ${fmtInt(pendentesCount)} requisições pendentes (${((pendentesValor / totalPago) * 100).toFixed(1)}% da receita do período).` });
   }
-  if (!alertas.length) alertas.push("Nenhum indicador crítico identificado no período analisado.");
-  alertas.forEach((a) => { y = paragraph(doc, y, `•  ${a}`); });
+  if (taxaPendencia >= 30) alertas.push({ sev: "warn", title: "Pendências elevadas", body: `${taxaPendencia.toFixed(1)}% das requisições ainda não foram pagas.` });
+  if (!alertas.length) alertas.push({ sev: "info", title: "Operação estável", body: "Nenhum indicador crítico identificado no período analisado." });
 
-  y += 6;
+  {
+    const pageW = doc.internal.pageSize.getWidth();
+    const cols = 2;
+    const gap = 10;
+    const boxW = (pageW - 80 - gap * (cols - 1)) / cols;
+    const boxH = 54;
+    alertas.forEach((a, i) => {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const x = 40 + col * (boxW + gap);
+      const yy = y + row * (boxH + gap);
+      const c = SEV_COLOR[a.sev];
+      // Faixa lateral colorida
+      doc.setFillColor(c[0], c[1], c[2]);
+      doc.roundedRect(x, yy, 5, boxH, 2, 2, "F");
+      // Fundo claro
+      doc.setFillColor(248, 250, 248);
+      doc.setDrawColor(225, 232, 228);
+      doc.roundedRect(x + 5, yy, boxW - 5, boxH, 3, 3, "FD");
+      // Selo de severidade
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7.5);
+      doc.setTextColor(c[0], c[1], c[2]);
+      doc.text(SEV_LABEL[a.sev], x + 14, yy + 14);
+      // Título
+      doc.setFontSize(9.5);
+      doc.setTextColor(BRAND_DEEP.r, BRAND_DEEP.g, BRAND_DEEP.b);
+      doc.text(a.title, x + 14, yy + 28);
+      // Corpo
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.5);
+      doc.setTextColor(60, 60, 60);
+      const lines = doc.splitTextToSize(a.body, boxW - 24) as string[];
+      doc.text(lines.slice(0, 2), x + 14, yy + 40);
+    });
+    doc.setTextColor(20);
+    const rows = Math.ceil(alertas.length / cols);
+    y += rows * (boxH + gap) + 4;
+  }
+
+  // ----- Conclusão Gerencial (bloco destacado) -----
   y = sectionTitle(doc, y, "Conclusão Gerencial");
-  const conclusao =
-    `O resultado comercial do período totalizou ${fmtBRLFull(totalPago)} recebidos, com taxa de conversão de ${taxaConv.toFixed(1)}% sobre ${fmtInt(uniqOrc.length)} orçamentos gerados. ` +
-    `A carteira de convênios mantém ${top2pct.toFixed(1)}% concentrados nos dois principais parceiros, o que reforça a importância de diversificação. ` +
-    `A busca ativa apresenta oportunidade direta de ${fmtBRLFull(pendentesValor)} em recuperação, distribuída em ${fmtInt(pendentesCount)} requisições pendentes de pagamento. ` +
-    `Recomenda-se priorizar a conversão das pendências, monitorar a concentração por convênio e reforçar as ações de fechamento dos atendentes com menor taxa de conversão.`;
-  paragraph(doc, y, conclusao);
+  {
+    const pageW = doc.internal.pageSize.getWidth();
+    const conclusao =
+      `O resultado comercial do período totalizou ${fmtBRLFull(totalPago)} recebidos, com taxa de conversão de ${taxaConv.toFixed(1)}% sobre ${fmtInt(uniqOrc.length)} orçamentos gerados. ` +
+      `A carteira de convênios mantém ${top2pct.toFixed(1)}% concentrados nos dois principais parceiros, o que reforça a importância de diversificação. ` +
+      `A busca ativa apresenta oportunidade direta de ${fmtBRLFull(pendentesValor)} em recuperação, distribuída em ${fmtInt(pendentesCount)} requisições pendentes de pagamento. ` +
+      `Recomenda-se priorizar a conversão das pendências, monitorar a concentração por convênio e reforçar as ações de fechamento dos atendentes com menor taxa de conversão.`;
+    const lines = doc.splitTextToSize(conclusao, pageW - 80 - 36) as string[];
+    const padding = 14;
+    const boxH = lines.length * 12 + padding * 2 + 8;
+    // Fundo levemente destacado + borda verde institucional
+    doc.setFillColor(BRAND_SOFT_BG[0], BRAND_SOFT_BG[1], BRAND_SOFT_BG[2]);
+    doc.setDrawColor(BRAND.r, BRAND.g, BRAND.b);
+    doc.setLineWidth(1.2);
+    doc.roundedRect(40, y, pageW - 80, boxH, 6, 6, "FD");
+    doc.setLineWidth(0.2);
+    // Ícone executivo (selo circular com check)
+    doc.setFillColor(BRAND.r, BRAND.g, BRAND.b);
+    doc.circle(40 + 18, y + 22, 9, "F");
+    doc.setDrawColor(255, 255, 255);
+    doc.setLineWidth(1.4);
+    doc.line(40 + 14, y + 22, 40 + 17, y + 25);
+    doc.line(40 + 17, y + 25, 40 + 23, y + 18);
+    doc.setLineWidth(0.2);
+    // Cabeçalho do bloco
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(BRAND_DEEP.r, BRAND_DEEP.g, BRAND_DEEP.b);
+    doc.text("Encerramento Executivo do Período", 40 + 34, y + 25);
+    // Corpo
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9.5);
+    doc.setTextColor(55, 65, 81);
+    doc.text(lines, 40 + 18, y + 25 + 18);
+    doc.setTextColor(20);
+    y += boxH + 6;
+  }
 
   // ===== Footer with page numbers =====
   const total = doc.getNumberOfPages();
