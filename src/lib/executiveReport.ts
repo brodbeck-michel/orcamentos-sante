@@ -946,12 +946,12 @@ export async function generateExecutiveReport(rows: OrcamentoRow[], filters: Exe
   else if (top2pct >= 50) alertas.push({ sev: "warn", title: "Concentração moderada", body: `${top2pct.toFixed(1)}% do faturamento recebido vem dos 2 maiores convênios.` });
   if (prevFilters && prevPago > 0) {
     const varPct = ((totalPago - prevPago) / prevPago) * 100;
-    if (varPct <= -10) alertas.push({ sev: "risk", title: "Queda de faturamento", body: `Receita recuou ${Math.abs(varPct).toFixed(1)}% frente ao período anterior (${fmtBRLFull(prevPago)} → ${fmtBRLFull(totalPago)}).` });
-    else if (varPct >= 10) alertas.push({ sev: "opp", title: "Crescimento de faturamento", body: `Receita avançou ${varPct.toFixed(1)}% frente ao período anterior (${fmtBRLFull(prevPago)} → ${fmtBRLFull(totalPago)}).` });
+    if (varPct <= -10) alertas.push({ sev: "risk", title: "Queda de faturamento", body: `Receita recuou ${Math.abs(varPct).toFixed(1)}% frente ao período anterior (${fmtBRLFull(prevPago)} -> ${fmtBRLFull(totalPago)}).` });
+    else if (varPct >= 10) alertas.push({ sev: "opp", title: "Crescimento de faturamento", body: `Receita avançou ${varPct.toFixed(1)}% frente ao período anterior (${fmtBRLFull(prevPago)} -> ${fmtBRLFull(totalPago)}).` });
   }
   if (prevFilters && prevConv > 0) {
     const dConv = taxaConv - prevConv;
-    if (dConv <= -5) alertas.push({ sev: "warn", title: "Queda de conversão", body: `Taxa caiu ${Math.abs(dConv).toFixed(1)} p.p. em relação ao período anterior (${prevConv.toFixed(1)}% → ${taxaConv.toFixed(1)}%).` });
+    if (dConv <= -5) alertas.push({ sev: "warn", title: "Queda de conversão", body: `Taxa caiu ${Math.abs(dConv).toFixed(1)} p.p. em relação ao período anterior (${prevConv.toFixed(1)}% -> ${taxaConv.toFixed(1)}%).` });
   }
   if (pendentesValor > 0 && totalPago > 0 && pendentesValor / totalPago >= 0.15) {
     alertas.push({ sev: "opp", title: "Alto potencial de recuperação", body: `${fmtBRLFull(pendentesValor)} em ${fmtInt(pendentesCount)} requisições pendentes (${((pendentesValor / totalPago) * 100).toFixed(1)}% da receita do período).` });
