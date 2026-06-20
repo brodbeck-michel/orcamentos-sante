@@ -746,9 +746,12 @@ export async function generateExecutiveReport(rows: OrcamentoRow[], filters: Exe
   y = kpiGrid(doc, y, [
     { label: "Requisições Pendentes", value: fmtInt(pendentesCount) },
     { label: "Valor Potencial de Recuperação", value: fmtBRLFull(pendentesValor) },
-    { label: "Conversão Requisição → Pagamento", value: `${capPct(uniqReq.length ? (pagosUniq.length / uniqReq.length) * 100 : 0).toFixed(1)}%` },
+    { label: "Conversão Requisição → Pagamento", value: `${convReqPag.toFixed(1)}%` },
     { label: "Taxa de Pendência", value: `${taxaPendencia.toFixed(1)}%` },
   ], 4);
+  if (!reqCoerente) {
+    y = paragraph(doc, y, `Observação: divergência entre requisições pagas (${fmtInt(reqsPagasCount)}) e pendentes (${fmtInt(pendentesCount)}) em relação ao total único (${fmtInt(uniqReq.length)}). Verificar base de dados.`, { size: 8.5, color: [120, 60, 60] });
+  }
 
   y += 4;
   y = sectionTitle(doc, y, "Alertas Estratégicos para a Diretoria");
