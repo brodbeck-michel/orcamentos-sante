@@ -219,6 +219,51 @@ function kpiGrid(
   return y + rows * (boxH + gap);
 }
 
+// KPI card with a smaller sub-line under the main value (used for "Destaques").
+function kpiGridDetailed(
+  doc: jsPDF,
+  y: number,
+  items: { label: string; value: string; sub?: string; icon?: string }[],
+  cols = 4,
+): number {
+  const pageW = doc.internal.pageSize.getWidth();
+  const gap = 10;
+  const boxW = (pageW - 80 - gap * (cols - 1)) / cols;
+  const boxH = 70;
+  items.forEach((it, i) => {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const x = 40 + col * (boxW + gap);
+    const yy = y + row * (boxH + gap);
+    doc.setFillColor(BRAND_SOFT_BG[0], BRAND_SOFT_BG[1], BRAND_SOFT_BG[2]);
+    doc.setDrawColor(BRAND_BORDER[0], BRAND_BORDER[1], BRAND_BORDER[2]);
+    doc.roundedRect(x, yy, boxW, boxH, 5, 5, "FD");
+    // Top label
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.5);
+    doc.setTextColor(BRAND.r, BRAND.g, BRAND.b);
+    doc.text(it.label.toUpperCase(), x + 10, yy + 14);
+    // Value (truncated to one line)
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(BRAND_DEEP.r, BRAND_DEEP.g, BRAND_DEEP.b);
+    const valueLines = doc.splitTextToSize(it.value, boxW - 20) as string[];
+    doc.text(valueLines[0] ?? "—", x + 10, yy + 36);
+    // Sub-line
+    if (it.sub) {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(60, 60, 60);
+      const subLines = doc.splitTextToSize(it.sub, boxW - 20) as string[];
+      doc.text(subLines[0] ?? "", x + 10, yy + 54);
+    }
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(20);
+  });
+  const rows = Math.ceil(items.length / cols);
+  return y + rows * (boxH + gap);
+}
+
 // Highlighted KPI block (used for the commercial result on page 1).
 function kpiBigBlock(
   doc: jsPDF,
@@ -257,10 +302,60 @@ function variationLabel(curr: number, prev: number, unit: "money" | "pct" = "mon
   }
   const delta = curr - prev;
   const pct = (delta / Math.abs(prev)) * 100;
-  const arrow = delta >= 0 ? "↑" : "↓";
-  const sign = delta >= 0 ? "+" : "−";
+  const sign = delta >= 0 ? "+" : "-";
   const base = unit === "money" ? fmtBRLFull(Math.abs(delta)) : `${Math.abs(delta).toFixed(1)} p.p.`;
-  return `${arrow} ${sign}${Math.abs(pct).toFixed(1)}% (${base}) vs período anterior`;
+  return `${sign}${Math.abs(pct).toFixed(1)}% (${base}) vs período anterior`;
+}
+
+// Variation badge: draws a colored triangle (▲/▼) + signed value.
+// `unit`: 'rel' uses relative % change; 'pp' uses absolute delta in p.p.
+function drawVarBadge(
+  doc: jsPDF,
+  x: number,
+  baselineY: number,
+  curr: number,
+  prev: number,
+  unit: "rel" | "pp",
+) {
+  if (!Number.isFinite(prev) || prev === 0) {
+    doc.setTextColor(120, 120, 120);
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(8.5);
+    doc.text("sem comparativo", x, baselineY);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(20);
+    return;
+  }
+  const delta = curr - prev;
+  const positive = delta > 0.0001;
+  const negative = delta < -0.0001;
+  const color: [number, number, number] = positive
+    ? [22, 128, 72]
+    : negative
+      ? [185, 28, 28]
+      : [110, 110, 110];
+  // Glyph (triangle/square) drawn as vector so it works in any font.
+  doc.setFillColor(color[0], color[1], color[2]);
+  const size = 5;
+  const ty = baselineY - 8;
+  if (positive) {
+    doc.triangle(x, ty + size, x + size, ty + size, x + size / 2, ty, "F");
+  } else if (negative) {
+    doc.triangle(x, ty, x + size, ty, x + size / 2, ty + size, "F");
+  } else {
+    doc.rect(x, ty + 1, size, size - 1, "F");
+  }
+  doc.setTextColor(color[0], color[1], color[2]);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  const sign = positive ? "+" : negative ? "-" : "";
+  const value =
+    unit === "pp"
+      ? `${sign}${Math.abs(delta).toFixed(1)} p.p.`
+      : `${sign}${Math.abs((delta / Math.abs(prev)) * 100).toFixed(1)}%`;
+  doc.text(value, x + size + 5, baselineY);
+  doc.setTextColor(20);
+  doc.setFont("helvetica", "normal");
 }
 
 function paragraph(doc: jsPDF, y: number, text: string, opts?: { size?: number; color?: [number, number, number] }): number {
