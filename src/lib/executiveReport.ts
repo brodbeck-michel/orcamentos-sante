@@ -444,6 +444,13 @@ export async function generateExecutiveReport(rows: OrcamentoRow[], filters: Exe
   const pendentesValor = reqsPendentes.reduce((s, r) => s + (r.valorRequisicao || r.total || 0), 0);
   const taxaPendencia = capPct(uniqReq.length ? (pendentesCount / uniqReq.length) * 100 : 0);
 
+  // Conversion Requisição → Pagamento: share of THIS period's unique requisições
+  // that were actually paid. Uses the same uniqReq base as pendentes for coherence.
+  const reqsPagasCount = uniqReq.filter((r) => r.pago && (r.valorPago ?? 0) > 0).length;
+  const convReqPag = capPct(uniqReq.length ? (reqsPagasCount / uniqReq.length) * 100 : 0);
+  // Sanity check: pendentes + pagas should equal uniqReq. If not, surface a note.
+  const reqCoerente = pendentesCount + reqsPagasCount === uniqReq.length;
+
   // Vendas (exames/checkup) — totals
   const totalExames = vendas.filter((v) => v.tipo === "exames").reduce((s, v) => s + v.valor, 0);
   const totalCheckup = vendas.filter((v) => v.tipo === "checkup").reduce((s, v) => s + v.valor, 0);
@@ -524,8 +531,16 @@ export async function generateExecutiveReport(rows: OrcamentoRow[], filters: Exe
   let y = 90;
   y = sectionTitle(doc, y, "Resultado Comercial do Período");
   y = kpiBigBlock(doc, y, [
-    { label: "Receita Recebida", value: fmtBRLFull(totalPago), sub: prevFilters ? variationLabel(totalPago, prevPago) : undefined },
-    { label: "Total de Comissões", value: fmtBRLFull(comTotal), sub: prevFilters ? variationLabel(comTotal, prevComTotal) : undefined },
+    {
+      label: "Receita Recebida",
+      value: fmtBRLFull(totalPago),
+      variation: prevFilters ? { curr: totalPago, prev: prevPago, unit: "rel" } : undefined,
+    },
+    {
+      label: "Total de Comissões",
+      value: fmtBRLFull(comTotal),
+      variation: prevFilters ? { curr: comTotal, prev: prevComTotal, unit: "rel" } : undefined,
+    },
     { label: "Representatividade", value: `${comPctReceita.toFixed(2)}%`, sub: "Comissões sobre Receita" },
   ]);
 
@@ -542,20 +557,32 @@ export async function generateExecutiveReport(rows: OrcamentoRow[], filters: Exe
   if (prevFilters) {
     y += 4;
     y = sectionTitle(doc, y, "Comparativo com Período Anterior");
-    const comp: [string, string, string][] = [
-      ["Total Recebido", fmtBRLFull(totalPago), variationLabel(totalPago, prevPago)],
-      ["Total Orçado", fmtBRLFull(totalOrcado), variationLabel(totalOrcado, prevOrcado)],
-      ["Taxa de Conversão", `${taxaConv.toFixed(1)}%`, variationLabel(taxaConv, prevConv, "pct")],
+    const compRows: { label: string; atual: string; curr: number; prev: number; unit: "rel" | "pp" }[] = [
+      { label: "Total Recebido", atual: fmtBRLFull(totalPago), curr: totalPago, prev: prevPago, unit: "rel" },
+      { label: "Total Orçado", atual: fmtBRLFull(totalOrcado), curr: totalOrcado, prev: prevOrcado, unit: "rel" },
+      { label: "Total de Comissões", atual: fmtBRLFull(comTotal), curr: comTotal, prev: prevComTotal, unit: "rel" },
+      { label: "Taxa de Conversão", atual: `${taxaConv.toFixed(1)}%`, curr: taxaConv, prev: prevConv, unit: "pp" },
     ];
     autoTable(doc, {
       startY: y,
-      head: [["Indicador", "Período Atual", "Variação vs Período Anterior"]],
-      body: comp,
-      styles: { fontSize: 9, cellPadding: 5 },
+      head: [["Indicador", "Atual", "Variação"]],
+      body: compRows.map((r) => [r.label, r.atual, ""]),
+      styles: { fontSize: 10, cellPadding: 7 },
       headStyles: { fillColor: [BRAND.r, BRAND.g, BRAND.b], textColor: 255, fontStyle: "bold" },
       alternateRowStyles: { fillColor: BRAND_SOFT_BG },
-      columnStyles: { 1: { halign: "right" }, 2: { halign: "left" } },
+      columnStyles: {
+        0: { fontStyle: "bold" },
+        1: { halign: "right", fontStyle: "bold" },
+        2: { halign: "left", cellWidth: 180 },
+      },
       margin: { left: 40, right: 40 },
+      didDrawCell: (data) => {
+        if (data.section !== "body" || data.column.index !== 2) return;
+        const row = compRows[data.row.index];
+        if (!row) return;
+        const baselineY = data.cell.y + data.cell.height / 2 + 3;
+        drawVarBadge(doc, data.cell.x + 8, baselineY, row.curr, row.prev, row.unit);
+      },
     });
     // @ts-expect-error lastAutoTable injected
     y = (doc.lastAutoTable?.finalY ?? y) + 14;
@@ -571,14 +598,30 @@ export async function generateExecutiveReport(rows: OrcamentoRow[], filters: Exe
 
   y += 6;
   y = sectionTitle(doc, y, "Destaques do Período");
-  const destaques = [
-    `Atendente com maior faturamento: ${topUser ? `${topUser.atendente} (${fmtBRLFull(topUser.recebido)})` : "—"}`,
-    `Convênio com maior faturamento: ${topConv ? `${topConv.convenio} (${fmtBRLFull(topConv.recebido)})` : "—"}`,
-    `Melhor taxa de conversão: ${bestConv ? `${bestConv.atendente} (${capPct((bestConv.qtdPago / bestConv.qtdOrc) * 100).toFixed(1)}%)` : `— (mínimo de ${MIN_ORC_RANKING} orçamentos)`}`,
-    `Melhor ticket médio: ${bestTicket && bestTicket.qtdPago ? `${bestTicket.atendente} (${fmtBRLFull(bestTicket.recebido / bestTicket.qtdPago)})` : `— (mínimo de ${MIN_ORC_RANKING} orçamentos)`}`,
-    `Valor potencial de recuperação: ${fmtBRLFull(pendentesValor)} em ${fmtInt(pendentesCount)} requisição(ões) pendente(s)`,
-  ];
-  destaques.forEach((d) => { y = paragraph(doc, y, `•  ${d}`); });
+  y = kpiGridDetailed(doc, y, [
+    {
+      label: "Melhor Atendente",
+      value: topUser ? topUser.atendente : "—",
+      sub: topUser ? fmtBRLFull(topUser.recebido) : "Sem dados no período",
+    },
+    {
+      label: "Melhor Convênio",
+      value: topConv ? topConv.convenio : "—",
+      sub: topConv ? fmtBRLFull(topConv.recebido) : "Sem dados no período",
+    },
+    {
+      label: "Melhor Conversão",
+      value: bestConv ? bestConv.atendente : "—",
+      sub: bestConv
+        ? `${capPct((bestConv.qtdPago / bestConv.qtdOrc) * 100).toFixed(1)}% de conversão`
+        : `Mínimo de ${MIN_ORC_RANKING} orçamentos`,
+    },
+    {
+      label: "Potencial de Recuperação",
+      value: fmtBRLFull(pendentesValor),
+      sub: `${fmtInt(pendentesCount)} requisições pendentes`,
+    },
+  ], 4);
 
   y += 6;
   y = sectionTitle(doc, y, "Parecer Executivo");
