@@ -881,7 +881,7 @@ export async function generateExecutiveReport(rows: OrcamentoRow[], filters: Exe
     doc.text("VALOR POTENCIAL DE RECUPERAÇÃO", 56, y + 22);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(34);
-    doc.setTextColor(BRAND_DEEP.r, BRAND_DEEP.g, BRAND_DELETED.b);
+    doc.setTextColor(BRAND_DEEP.r, BRAND_DEEP.g, BRAND_DEEP.b);
     doc.text(fmtBRLFull(pendentesValor), 56, y + 58);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9.5);
