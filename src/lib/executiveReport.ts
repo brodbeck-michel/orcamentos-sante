@@ -863,8 +863,8 @@ export async function generateExecutiveReport(rows: OrcamentoRow[], filters: Exe
   drawHeader(doc, logo, filters, "Página 4 — Busca Ativa, Alertas e Conclusão");
 
   y = 90;
-  // ----- Busca Ativa (bloco principal da pagina) -----
-  y = sectionTitle(doc, y, "Busca Ativa - Potencial de Recuperacao");
+  // ----- Busca Ativa (bloco principal da página) -----
+  y = sectionTitle(doc, y, "Busca Ativa — Potencial de Recuperação");
   {
     const pageW = doc.internal.pageSize.getWidth();
     const pctRecuperacao = totalPago ? (pendentesValor / totalPago) * 100 : 0;
@@ -874,36 +874,36 @@ export async function generateExecutiveReport(rows: OrcamentoRow[], filters: Exe
     doc.setLineWidth(1.4);
     doc.roundedRect(40, y, pageW - 80, cardH, 6, 6, "FD");
     doc.setLineWidth(0.2);
-    // Valor de recuperacao em destaque (fonte grande, verde institucional)
+    // Valor de recuperação em destaque (fonte grande, verde institucional)
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8.5);
     doc.setTextColor(BRAND.r, BRAND.g, BRAND.b);
-    doc.text("VALOR POTENCIAL DE RECUPERACAO", 56, y + 22);
+    doc.text("VALOR POTENCIAL DE RECUPERAÇÃO", 56, y + 22);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(34);
-    doc.setTextColor(BRAND_DEEP.r, BRAND_DEEP.g, BRAND_DEEP.b);
+    doc.setTextColor(BRAND_DEEP.r, BRAND_DEEP.g, BRAND_DELETED.b);
     doc.text(fmtBRLFull(pendentesValor), 56, y + 58);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9.5);
     doc.setTextColor(80, 80, 80);
-    doc.text("Receita potencial que ainda pode ser convertida atraves das acoes de busca ativa.", 56, y + 80);
+    doc.text("Receita potencial que ainda pode ser convertida através das ações de busca ativa.", 56, y + 80);
     // Percentual sobre receita recebida
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
     doc.setTextColor(BRAND.r, BRAND.g, BRAND.b);
-    const pctLabel = `Representa ${pctRecuperacao.toFixed(1)}% da receita recebida no periodo.`;
+    const pctLabel = `Representa ${pctRecuperacao.toFixed(1)}% da receita recebida no período.`;
     doc.text(pctLabel, 56, y + 98);
-    // Receita recebida de referencia
+    // Receita recebida de referência
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
     doc.setTextColor(110, 110, 110);
-    doc.text(`Receita Recebida: ${fmtBRLFull(totalPago)} · ${fmtInt(pendentesCount)} requisicoes aguardam conversao.`, 56, y + 114);
-    // Mini KPIs a direita
+    doc.text(`Receita Recebida: ${fmtBRLFull(totalPago)} · ${fmtInt(pendentesCount)} requisições aguardam conversão.`, 56, y + 114);
+    // Mini KPIs à direita
     const miniX = pageW / 2 + 30;
     const items = [
-      { label: "Requisicoes Pendentes", value: fmtInt(pendentesCount) },
-      { label: "Conv. Requisicao -> Pagamento", value: `${convReqPag.toFixed(1)}%` },
-      { label: "Taxa de Pendencia", value: `${taxaPendencia.toFixed(1)}%` },
+      { label: "Requisições Pendentes", value: fmtInt(pendentesCount) },
+      { label: "Conv. Requisição -> Pagamento", value: `${convReqPag.toFixed(1)}%` },
+      { label: "Taxa de Pendência", value: `${taxaPendencia.toFixed(1)}%` },
       { label: "% sobre Receita", value: `${pctRecuperacao.toFixed(1)}%` },
     ];
     items.forEach((it, i) => {
