@@ -912,22 +912,12 @@ export async function generateExecutiveReport(rows: OrcamentoRow[], filters: Exe
     y += cardH + 12;
   }
   if (!reqCoerente) {
-    y = paragraph(doc, y, `Observação: divergência entre requisições pagas (${fmtInt(reqsPagasCount)}) e pendentes (${fmtInt(pendentesCount)}) em relação ao total único (${fmtInt(uniqReq.length)}). Verificar base de dados.`, { size: 8.5, color: [120, 60, 60] });
+    y = paragraph(doc, y, `Observacao: divergencia entre requisicoes pagas (${fmtInt(reqsPagasCount)}) e pendentes (${fmtInt(pendentesCount)}) em relacao ao total unico (${fmtInt(uniqReq.length)}). Verificar base de dados.`, { size: 8.5, color: [120, 60, 60] });
   }
 
-  // ----- Oportunidade Financeira (card executivo) -----
-  y = sectionTitle(doc, y, "Oportunidade Financeira");
-  y = kpiBigBlock(doc, y, [
-    {
-      label: "Oportunidade de Recuperação Identificada",
-      value: fmtBRLFull(pendentesValor),
-      sub: `${fmtInt(pendentesCount)} requisições aguardam conversão`,
-    },
-  ]);
-
-  // ----- Alertas Estratégicos (cards coloridos) -----
-  y += 2;
-  y = sectionTitle(doc, y, "Alertas Estratégicos para a Diretoria");
+  // ----- Alertas Estrategicos (cards coloridos maiores) -----
+  y += 6;
+  y = sectionTitle(doc, y, "Alertas Estrategicos para a Diretoria");
   type AlertSev = "risk" | "warn" | "opp" | "info";
   const SEV_COLOR: Record<AlertSev, [number, number, number]> = {
     risk: [185, 28, 28],
@@ -937,34 +927,34 @@ export async function generateExecutiveReport(rows: OrcamentoRow[], filters: Exe
   };
   const SEV_LABEL: Record<AlertSev, string> = {
     risk: "RISCO ALTO",
-    warn: "ATENÇÃO",
+    warn: "ATENCAO",
     opp: "OPORTUNIDADE",
-    info: "INFORMAÇÃO",
+    info: "INFORMACAO",
   };
   const alertas: { sev: AlertSev; title: string; body: string }[] = [];
-  if (top2pct >= 70) alertas.push({ sev: "risk", title: "Concentração de receita elevada", body: `${top2pct.toFixed(1)}% do faturamento recebido vem dos 2 maiores convênios. Forte dependência comercial.` });
-  else if (top2pct >= 50) alertas.push({ sev: "warn", title: "Concentração moderada", body: `${top2pct.toFixed(1)}% do faturamento recebido vem dos 2 maiores convênios.` });
+  if (top2pct >= 70) alertas.push({ sev: "risk", title: "Concentracao de receita elevada", body: `${top2pct.toFixed(1)}% do faturamento recebido vem dos 2 maiores convenios. Forte dependencia comercial.` });
+  else if (top2pct >= 50) alertas.push({ sev: "warn", title: "Concentracao moderada", body: `${top2pct.toFixed(1)}% do faturamento recebido vem dos 2 maiores convenios.` });
   if (prevFilters && prevPago > 0) {
     const varPct = ((totalPago - prevPago) / prevPago) * 100;
-    if (varPct <= -10) alertas.push({ sev: "risk", title: "Queda de faturamento", body: `Receita recuou ${Math.abs(varPct).toFixed(1)}% frente ao período anterior (${fmtBRLFull(prevPago)} -> ${fmtBRLFull(totalPago)}).` });
-    else if (varPct >= 10) alertas.push({ sev: "opp", title: "Crescimento de faturamento", body: `Receita avançou ${varPct.toFixed(1)}% frente ao período anterior (${fmtBRLFull(prevPago)} -> ${fmtBRLFull(totalPago)}).` });
+    if (varPct <= -10) alertas.push({ sev: "risk", title: "Queda de faturamento", body: `Receita recuou ${Math.abs(varPct).toFixed(1)}% frente ao periodo anterior (${fmtBRLFull(prevPago)} -> ${fmtBRLFull(totalPago)}).` });
+    else if (varPct >= 10) alertas.push({ sev: "opp", title: "Crescimento de faturamento", body: `Receita avancou ${varPct.toFixed(1)}% frente ao periodo anterior (${fmtBRLFull(prevPago)} -> ${fmtBRLFull(totalPago)}).` });
   }
   if (prevFilters && prevConv > 0) {
     const dConv = taxaConv - prevConv;
-    if (dConv <= -5) alertas.push({ sev: "warn", title: "Queda de conversão", body: `Taxa caiu ${Math.abs(dConv).toFixed(1)} p.p. em relação ao período anterior (${prevConv.toFixed(1)}% -> ${taxaConv.toFixed(1)}%).` });
+    if (dConv <= -5) alertas.push({ sev: "warn", title: "Queda de conversao", body: `Taxa caiu ${Math.abs(dConv).toFixed(1)} p.p. em relacao ao periodo anterior (${prevConv.toFixed(1)}% -> ${taxaConv.toFixed(1)}%).` });
   }
   if (pendentesValor > 0 && totalPago > 0 && pendentesValor / totalPago >= 0.15) {
-    alertas.push({ sev: "opp", title: "Alto potencial de recuperação", body: `${fmtBRLFull(pendentesValor)} em ${fmtInt(pendentesCount)} requisições pendentes (${((pendentesValor / totalPago) * 100).toFixed(1)}% da receita do período).` });
+    alertas.push({ sev: "opp", title: "Alto potencial de recuperacao", body: `${fmtBRLFull(pendentesValor)} em ${fmtInt(pendentesCount)} requisicoes pendentes (${((pendentesValor / totalPago) * 100).toFixed(1)}% da receita do periodo).` });
   }
-  if (taxaPendencia >= 30) alertas.push({ sev: "warn", title: "Pendências elevadas", body: `${taxaPendencia.toFixed(1)}% das requisições ainda não foram pagas.` });
-  if (!alertas.length) alertas.push({ sev: "info", title: "Operação estável", body: "Nenhum indicador crítico identificado no período analisado." });
+  if (taxaPendencia >= 30) alertas.push({ sev: "warn", title: "Pendencias elevadas", body: `${taxaPendencia.toFixed(1)}% das requisicoes ainda nao foram pagas.` });
+  if (!alertas.length) alertas.push({ sev: "info", title: "Operacao estavel", body: "Nenhum indicador critico identificado no periodo analisado." });
 
   {
     const pageW = doc.internal.pageSize.getWidth();
     const cols = 2;
-    const gap = 10;
+    const gap = 12;
     const boxW = (pageW - 80 - gap * (cols - 1)) / cols;
-    const boxH = 54;
+    const boxH = 72;
     alertas.forEach((a, i) => {
       const col = i % cols;
       const row = Math.floor(i / cols);
@@ -980,23 +970,23 @@ export async function generateExecutiveReport(rows: OrcamentoRow[], filters: Exe
       doc.roundedRect(x + 5, yy, boxW - 5, boxH, 3, 3, "FD");
       // Selo de severidade
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(7.5);
+      doc.setFontSize(8);
       doc.setTextColor(c[0], c[1], c[2]);
-      doc.text(SEV_LABEL[a.sev], x + 14, yy + 14);
+      doc.text(SEV_LABEL[a.sev], x + 14, yy + 16);
       // Título
-      doc.setFontSize(9.5);
+      doc.setFontSize(10.5);
       doc.setTextColor(BRAND_DEEP.r, BRAND_DEEP.g, BRAND_DEEP.b);
-      doc.text(a.title, x + 14, yy + 28);
+      doc.text(a.title, x + 14, yy + 32);
       // Corpo
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(8.5);
+      doc.setFontSize(9);
       doc.setTextColor(60, 60, 60);
       const lines = doc.splitTextToSize(a.body, boxW - 24) as string[];
-      doc.text(lines.slice(0, 2), x + 14, yy + 40);
+      doc.text(lines.slice(0, 3), x + 14, yy + 48);
     });
     doc.setTextColor(20);
     const rows = Math.ceil(alertas.length / cols);
-    y += rows * (boxH + gap) + 4;
+    y += rows * (boxH + gap) + 6;
   }
 
   // ----- Conclusão Gerencial (bloco destacado) -----
