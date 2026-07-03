@@ -83,10 +83,8 @@ export const createUser = createServerFn({ method: "POST" })
     const newId = created.user?.id;
     if (!newId) throw new Error("User creation failed");
 
-    if (data.role !== "user") {
-      await supabaseAdmin.from("user_roles").delete().eq("user_id", newId);
-      await supabaseAdmin.from("user_roles").insert({ user_id: newId, role: data.role });
-    }
+    await supabaseAdmin.from("user_roles").delete().eq("user_id", newId);
+    await supabaseAdmin.from("user_roles").insert({ user_id: newId, role: data.role });
     if (data.atendente !== undefined) {
       await supabaseAdmin
         .from("profiles")
@@ -112,12 +110,10 @@ export const setUserRole = createServerFn({ method: "POST" })
     }
 
     await supabaseAdmin.from("user_roles").delete().eq("user_id", data.user_id);
-    if (data.role !== "user") {
-      const { error } = await supabaseAdmin
-        .from("user_roles")
-        .insert({ user_id: data.user_id, role: data.role });
-      if (error) throw new Error(error.message);
-    }
+    const { error } = await supabaseAdmin
+      .from("user_roles")
+      .insert({ user_id: data.user_id, role: data.role });
+    if (error) throw new Error(error.message);
     return { ok: true };
   });
 
