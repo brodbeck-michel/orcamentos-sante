@@ -35,7 +35,8 @@ export function AppHeader({
 }) {
   const auth = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const showSettings = auth.isAdmin && (onImport || onClearData || true);
+  const canManageExames = auth.isAdmin || auth.role === "user";
+  const showSettings = auth.isAdmin || canManageExames;
 
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-card/80 backdrop-blur">
@@ -76,7 +77,7 @@ export function AppHeader({
 
         {/* Right cluster */}
         <div className="flex items-center gap-1.5">
-          {showSettings && auth.isAdmin && (
+          {showSettings && (
             <DropdownMenu>
               <DropdownMenuTrigger
                 className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition hover:bg-accent hover:text-foreground"
@@ -88,37 +89,43 @@ export function AppHeader({
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>Configurações</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {onImport && (
+                {onImport && auth.isAdmin && (
                   <DropdownMenuItem onSelect={() => onImport()}>
                     <FileSpreadsheet className="mr-2 h-4 w-4" />
                     Importar planilha
                   </DropdownMenuItem>
                 )}
-                {onClearData && (
+                {onClearData && auth.isAdmin && (
                   <DropdownMenuItem onSelect={() => onClearData()}>
                     <FileSpreadsheet className="mr-2 h-4 w-4" />
                     Limpar dados de orçamento
                   </DropdownMenuItem>
                 )}
-                {(onImport || onClearData) && <DropdownMenuSeparator />}
-                <DropdownMenuItem asChild>
-                  <Link to="/admin/users">
-                    <Users className="mr-2 h-4 w-4" />
-                    Gestão de usuários
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/admin/atendentes">
-                    <Headset className="mr-2 h-4 w-4" />
-                    Cadastro de atendentes
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/admin/exames">
-                    <FlaskConical className="mr-2 h-4 w-4" />
-                    Cadastro de exames
-                  </Link>
-                </DropdownMenuItem>
+                {auth.isAdmin && (onImport || onClearData) && <DropdownMenuSeparator />}
+                {auth.isAdmin && (
+                  <DropdownMenuItem asChild>
+                    <Link to="/admin/users">
+                      <Users className="mr-2 h-4 w-4" />
+                      Gestão de usuários
+                    </Link>
+                  </DropdownMenuItem>
+                )}
+                {auth.isAdmin && (
+                  <DropdownMenuItem asChild>
+                    <Link to="/admin/atendentes">
+                      <Headset className="mr-2 h-4 w-4" />
+                      Cadastro de atendentes
+                    </Link>
+                  </DropdownMenuItem>
+                )}
+                {canManageExames && (
+                  <DropdownMenuItem asChild>
+                    <Link to="/admin/exames">
+                      <FlaskConical className="mr-2 h-4 w-4" />
+                      Cadastro de exames
+                    </Link>
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           )}
@@ -169,11 +176,11 @@ export function AppHeader({
                       </Link>
                     );
                   })}
-                  {auth.isAdmin && (
+                  {showSettings && (
                     <>
                       <div className="my-2 border-t border-border" />
                       <div className="px-3 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">Configurações</div>
-                      {onImport && (
+                      {onImport && auth.isAdmin && (
                         <button
                           onClick={() => { setMobileOpen(false); onImport(); }}
                           className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm text-foreground hover:bg-accent"
@@ -181,7 +188,7 @@ export function AppHeader({
                           <FileSpreadsheet className="h-4 w-4" /> Importar planilha
                         </button>
                       )}
-                      {onClearData && (
+                      {onClearData && auth.isAdmin && (
                         <button
                           onClick={() => { setMobileOpen(false); onClearData(); }}
                           className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm text-foreground hover:bg-accent"
@@ -189,27 +196,33 @@ export function AppHeader({
                           <FileSpreadsheet className="h-4 w-4" /> Limpar dados
                         </button>
                       )}
-                      <Link
-                        to="/admin/users"
-                        onClick={() => setMobileOpen(false)}
-                        className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm text-foreground hover:bg-accent"
-                      >
-                        <Users className="h-4 w-4" /> Gestão de usuários
-                      </Link>
-                      <Link
-                        to="/admin/atendentes"
-                        onClick={() => setMobileOpen(false)}
-                        className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm text-foreground hover:bg-accent"
-                      >
-                        <Headset className="h-4 w-4" /> Cadastro de atendentes
-                      </Link>
-                      <Link
-                        to="/admin/exames"
-                        onClick={() => setMobileOpen(false)}
-                        className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm text-foreground hover:bg-accent"
-                      >
-                        <FlaskConical className="h-4 w-4" /> Cadastro de exames
-                      </Link>
+                      {auth.isAdmin && (
+                        <Link
+                          to="/admin/users"
+                          onClick={() => setMobileOpen(false)}
+                          className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm text-foreground hover:bg-accent"
+                        >
+                          <Users className="h-4 w-4" /> Gestão de usuários
+                        </Link>
+                      )}
+                      {auth.isAdmin && (
+                        <Link
+                          to="/admin/atendentes"
+                          onClick={() => setMobileOpen(false)}
+                          className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm text-foreground hover:bg-accent"
+                        >
+                          <Headset className="h-4 w-4" /> Cadastro de atendentes
+                        </Link>
+                      )}
+                      {canManageExames && (
+                        <Link
+                          to="/admin/exames"
+                          onClick={() => setMobileOpen(false)}
+                          className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm text-foreground hover:bg-accent"
+                        >
+                          <FlaskConical className="h-4 w-4" /> Cadastro de exames
+                        </Link>
+                      )}
                     </>
                   )}
                   <div className="my-2 border-t border-border" />

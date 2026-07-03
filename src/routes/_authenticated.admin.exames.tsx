@@ -35,9 +35,10 @@ function ExamesPage() {
   const [editing, setEditing] = useState<Exame | null>(null);
   const [creating, setCreating] = useState(false);
 
+  const canAccess = auth.isAdmin || auth.role === "user";
   useEffect(() => {
-    if (!auth.loading && !auth.isAdmin) navigate({ to: "/" });
-  }, [auth.loading, auth.isAdmin, navigate]);
+    if (!auth.loading && !canAccess) navigate({ to: "/" });
+  }, [auth.loading, canAccess, navigate]);
 
   const refresh = async () => {
     setLoading(true);
@@ -46,7 +47,7 @@ function ExamesPage() {
     else setRows((data ?? []) as Exame[]);
     setLoading(false);
   };
-  useEffect(() => { if (auth.isAdmin) refresh(); }, [auth.isAdmin]);
+  useEffect(() => { if (canAccess) refresh(); }, [canAccess]);
 
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
@@ -84,7 +85,7 @@ function ExamesPage() {
     refresh();
   };
 
-  if (auth.loading || !auth.isAdmin) return null;
+  if (auth.loading || !canAccess) return null;
 
   return (
     <div className="min-h-screen" style={{ background: "var(--gradient-soft)" }}>
