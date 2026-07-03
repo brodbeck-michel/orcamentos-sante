@@ -41,7 +41,9 @@ export function useAuth(): AuthState {
         ? "admin"
         : roles.includes("atendente")
           ? "atendente"
-          : roles[0] ?? null;
+          : roles.includes("user")
+            ? "user"
+            : roles[0] ?? "user";
       setRole(resolved);
       setAtendenteName(((profileData as { atendente?: string | null } | null)?.atendente) ?? null);
     };
