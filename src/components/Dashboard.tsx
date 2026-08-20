@@ -934,8 +934,10 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
               </ul>
             </section>
           )}
-        </div>
-      )}
+          </div>
+        )}
+      </div>
+
     </div>
   );
 }
