@@ -39,9 +39,12 @@ import {
   Trophy,
   Target,
   Percent,
+  FileDown,
 } from "lucide-react";
 import { useGlobalFilters } from "@/lib/globalFilters";
 import { generateExecutiveReport } from "@/lib/executiveReport";
+import { generateCommissionReport } from "@/lib/commissionReport";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const CHART_COLORS = [
