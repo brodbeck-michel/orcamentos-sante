@@ -123,6 +123,24 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
     };
   }, []);
 
+  // Vendas (exames / check-up) do período — origem: Registro de Vendas.
+  const [vendas, setVendas] = useState<{ atendente: string; valor: number; tipo: string }[]>([]);
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      let q = supabase.from("vendas").select("atendente,valor,tipo");
+      if (dateFrom) q = q.gte("data_venda", dateFrom);
+      if (dateTo) q = q.lte("data_venda", dateTo);
+      const { data } = await q;
+      if (active) setVendas((data ?? []) as { atendente: string; valor: number; tipo: string }[]);
+    })();
+    return () => {
+      active = false;
+    };
+  }, [dateFrom, dateTo]);
+
+
+
   const conveniosList = useMemo(() => {
     const set = new Set<string>();
     rows.forEach((r) => set.add(r.convenioPrincipal));
