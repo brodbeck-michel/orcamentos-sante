@@ -179,3 +179,53 @@ export async function generateCommissionReport(input: CommissionReportInput) {
 
   doc.save(`comissoes-sante-${dateFrom || "inicio"}-${dateTo || "fim"}.pdf`);
 }
+
+export async function generateCommissionExcel(input: CommissionReportInput) {
+  const { rows, dateFrom, dateTo } = input;
+  const XLSX = await import("xlsx");
+  const header = [
+    "Atendente",
+    "Recebido Orç.",
+    "Com. Orç.",
+    "Vendas Exames",
+    "Com. Exames",
+    "Vendas Check-up",
+    "Com. Check-up",
+    "Comissão Total",
+  ];
+  const body = rows.map((r) => [
+    r.atendente,
+    r.orcPago,
+    r.comOrc,
+    r.exames,
+    r.comExames,
+    r.checkup,
+    r.comCheckup,
+    r.comTotal,
+  ]);
+  const totals = rows.reduce(
+    (a, r) => [
+      "TOTAL",
+      (a[1] as number) + r.orcPago,
+      (a[2] as number) + r.comOrc,
+      (a[3] as number) + r.exames,
+      (a[4] as number) + r.comExames,
+      (a[5] as number) + r.checkup,
+      (a[6] as number) + r.comCheckup,
+      (a[7] as number) + r.comTotal,
+    ],
+    ["TOTAL", 0, 0, 0, 0, 0, 0, 0] as (string | number)[],
+  );
+  const ws = XLSX.utils.aoa_to_sheet([header, ...body, totals]);
+  ws["!cols"] = [{ wch: 26 }, ...Array(7).fill({ wch: 16 })];
+  const range = XLSX.utils.decode_range(ws["!ref"] as string);
+  for (let R = 1; R <= range.e.r; R++) {
+    for (let C = 1; C <= range.e.c; C++) {
+      const cell = ws[XLSX.utils.encode_cell({ r: R, c: C })];
+      if (cell && typeof cell.v === "number") cell.z = '#,##0.00';
+    }
+  }
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Comissões");
+  XLSX.writeFile(wb, `comissoes-sante-${dateFrom || "inicio"}-${dateTo || "fim"}.xlsx`);
+}
