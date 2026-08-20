@@ -860,11 +860,15 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
                   </div>
                 </div>
               )}
+              </div>
             </div>
           }
         >
-          <UserTable rows={byUser} comissaoPct={comissaoPct} />
-        </Section>
+          <UserTable rows={byUserFull} comissaoPct={comissaoPct} pctVendas={pctVendas} />
+      </Section>
+
+      {/* Convênios + Insights & Alertas */}
+      <div className="grid gap-6 lg:grid-cols-2">
         <Section
           title="Detalhe por convênio"
           subtitle={`${byConvenio.length} convênios`}
@@ -873,6 +877,7 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
           <ConvenioTable rows={byConvenio} />
         </Section>
       </div>
+
 
       {/* Insights & Alerts (fim da página) */}
       {(insights.length > 0 || alerts.length > 0) && (
