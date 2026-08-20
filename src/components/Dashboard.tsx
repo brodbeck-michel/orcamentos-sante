@@ -768,14 +768,48 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
         </div>
       </Section>
 
-      {/* Tables */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Section
+      {/* Detalhe por atendente — largura total */}
+      <Section
           title="Detalhe por atendente"
-          subtitle={`${byUser.length} pessoas`}
-          info={`Tabela por atendente com quantidade de orçamentos, total orçado, quantidade de pagos, valor pago e comissão calculada em ${comissaoPct}% do valor recebido.`}
+          subtitle={`${byUserFull.length} pessoas · orçamentos, vendas e comissões`}
+          info={`Consolida orçamentos (comissão ${comissaoPct}% sobre o recebido) com as vendas de exames (${pctVendas.pctExames}%) e check-up (${pctVendas.pctCheckup}%) registradas em Registro de Vendas.`}
           headerRight={
-            <div className="relative">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await generateCommissionReport({
+                      rows: byUserFull.map((r) => ({
+                        atendente: r.usuario,
+                        orcPago: r.pago,
+                        comOrc: r.comOrc,
+                        exames: r.exames,
+                        comExames: r.comExames,
+                        checkup: r.checkup,
+                        comCheckup: r.comCheckup,
+                        comTotal: r.comTotal,
+                      })),
+                      pctOrc: comissaoPct,
+                      pctExames: pctVendas.pctExames,
+                      pctCheckup: pctVendas.pctCheckup,
+                      dateFrom,
+                      dateTo,
+                      convenio: convenioFilter,
+                    });
+                    toast.success("Relatório de comissões gerado.");
+                  } catch {
+                    toast.error("Não foi possível gerar o relatório.");
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition hover:bg-accent"
+                title="Gerar relatório de comissões em PDF"
+              >
+                <FileDown className="h-3.5 w-3.5" />
+                Relatório de comissão
+              </button>
+              <div className="relative">
+
               <button
                 type="button"
                 onClick={() => {
