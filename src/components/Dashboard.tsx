@@ -43,7 +43,13 @@ import {
 } from "lucide-react";
 import { useGlobalFilters } from "@/lib/globalFilters";
 import { generateExecutiveReport } from "@/lib/executiveReport";
-import { generateCommissionReport } from "@/lib/commissionReport";
+import { generateCommissionReport, generateCommissionExcel } from "@/lib/commissionReport";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -775,39 +781,58 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
           info={`Consolida orçamentos (comissão ${comissaoPct}% sobre o recebido) com as vendas de exames (${pctVendas.pctExames}%) e check-up (${pctVendas.pctCheckup}%) registradas em Registro de Vendas.`}
           headerRight={
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={async () => {
-                  try {
-                    await generateCommissionReport({
-                      rows: byUserFull.map((r) => ({
-                        atendente: r.usuario,
-                        orcPago: r.pago,
-                        comOrc: r.comOrc,
-                        exames: r.exames,
-                        comExames: r.comExames,
-                        checkup: r.checkup,
-                        comCheckup: r.comCheckup,
-                        comTotal: r.comTotal,
-                      })),
-                      pctOrc: comissaoPct,
-                      pctExames: pctVendas.pctExames,
-                      pctCheckup: pctVendas.pctCheckup,
-                      dateFrom,
-                      dateTo,
-                      convenio: convenioFilter,
-                    });
-                    toast.success("Relatório de comissões gerado.");
-                  } catch {
-                    toast.error("Não foi possível gerar o relatório.");
-                  }
-                }}
-                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition hover:bg-accent"
-                title="Gerar relatório de comissões em PDF"
-              >
-                <FileDown className="h-3.5 w-3.5" />
-                Relatório de comissão
-              </button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition hover:bg-accent"
+                    title="Gerar relatório de comissões"
+                  >
+                    <FileDown className="h-3.5 w-3.5" />
+                    Relatório de comissão
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-44">
+                  {(["pdf", "excel"] as const).map((fmt) => (
+                    <DropdownMenuItem
+                      key={fmt}
+                      onSelect={async () => {
+                        const payload = {
+                          rows: byUserFull.map((r) => ({
+                            atendente: r.usuario,
+                            orcPago: r.pago,
+                            comOrc: r.comOrc,
+                            exames: r.exames,
+                            comExames: r.comExames,
+                            checkup: r.checkup,
+                            comCheckup: r.comCheckup,
+                            comTotal: r.comTotal,
+                          })),
+                          pctOrc: comissaoPct,
+                          pctExames: pctVendas.pctExames,
+                          pctCheckup: pctVendas.pctCheckup,
+                          dateFrom,
+                          dateTo,
+                          convenio: convenioFilter,
+                        };
+                        try {
+                          if (fmt === "pdf") await generateCommissionReport(payload);
+                          else await generateCommissionExcel(payload);
+                          toast.success(
+                            `Relatório de comissões (${fmt === "pdf" ? "PDF" : "Excel"}) gerado.`,
+                          );
+                        } catch {
+                          toast.error("Não foi possível gerar o relatório.");
+                        }
+                      }}
+                      className="text-xs"
+                    >
+                      {fmt === "pdf" ? "Baixar em PDF" : "Baixar em Excel"}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
               <div className="relative">
 
               <button
