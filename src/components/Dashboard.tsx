@@ -95,6 +95,34 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
   const [editComissao, setEditComissao] = useState(false);
   const [comissaoInput, setComissaoInput] = useState<string>(String(comissaoPct));
 
+  // Percentuais de comissão de vendas (definidos em Vendas > Relatórios).
+  const [pctVendas, setPctVendas] = useState<{ pctExames: number; pctCheckup: number }>({
+    pctExames: 1.5,
+    pctCheckup: 1.5,
+  });
+  useEffect(() => {
+    const read = () => {
+      try {
+        const raw = window.localStorage.getItem("commissionConfig.v1");
+        if (!raw) return;
+        const p = JSON.parse(raw);
+        setPctVendas({
+          pctExames: Number.isFinite(p?.pctExames) ? Number(p.pctExames) : 1.5,
+          pctCheckup: Number.isFinite(p?.pctCheckup) ? Number(p.pctCheckup) : 1.5,
+        });
+      } catch {
+        /* noop */
+      }
+    };
+    read();
+    window.addEventListener("commission-config-change", read);
+    window.addEventListener("storage", read);
+    return () => {
+      window.removeEventListener("commission-config-change", read);
+      window.removeEventListener("storage", read);
+    };
+  }, []);
+
   const conveniosList = useMemo(() => {
     const set = new Set<string>();
     rows.forEach((r) => set.add(r.convenioPrincipal));
