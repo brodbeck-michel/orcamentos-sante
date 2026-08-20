@@ -1086,26 +1086,59 @@ function RankTable({
   );
 }
 
+type UserFullRow = {
+  usuario: string;
+  total: number;
+  qtd: number;
+  pago: number;
+  qtdPago: number;
+  exames: number;
+  checkup: number;
+  comOrc: number;
+  comExames: number;
+  comCheckup: number;
+  comTotal: number;
+};
+
 function UserTable({
   rows,
   comissaoPct,
+  pctVendas,
 }: {
-  rows: { usuario: string; total: number; qtd: number; pago: number; qtdPago: number }[];
+  rows: UserFullRow[];
   comissaoPct: number;
+  pctVendas: { pctExames: number; pctCheckup: number };
 }) {
+  const totals = rows.reduce(
+    (a, r) => ({
+      qtd: a.qtd + r.qtd,
+      total: a.total + r.total,
+      qtdPago: a.qtdPago + r.qtdPago,
+      pago: a.pago + r.pago,
+      comOrc: a.comOrc + r.comOrc,
+      exames: a.exames + r.exames,
+      comExames: a.comExames + r.comExames,
+      checkup: a.checkup + r.checkup,
+      comCheckup: a.comCheckup + r.comCheckup,
+      comTotal: a.comTotal + r.comTotal,
+    }),
+    { qtd: 0, total: 0, qtdPago: 0, pago: 0, comOrc: 0, exames: 0, comExames: 0, checkup: 0, comCheckup: 0, comTotal: 0 },
+  );
   return (
-    <div className="max-h-80 overflow-auto">
-      <table className="w-full text-sm">
-        <thead className="sticky top-0 bg-card text-xs uppercase tracking-wider text-muted-foreground">
+    <div className="max-h-[28rem] overflow-auto">
+      <table className="w-full min-w-[1000px] text-sm">
+        <thead className="sticky top-0 z-10 bg-card text-xs uppercase tracking-wider text-muted-foreground">
           <tr>
             <th className="py-2 pr-2 text-left font-medium">Atendente</th>
             <th className="py-2 px-2 text-right font-medium">Orç.</th>
-            <th className="py-2 px-2 text-right font-medium">Total</th>
-            <th className="py-2 px-2 text-right font-medium">Pagos</th>
             <th className="py-2 px-2 text-right font-medium">Recebido</th>
-            <th className="py-2 px-2 text-right font-medium">Ticket médio</th>
             <th className="py-2 px-2 text-right font-medium">Conv. %</th>
-            <th className="py-2 pl-2 text-right font-medium">Comissão ({comissaoPct}%)</th>
+            <th className="py-2 px-2 text-right font-medium">Com. Orç. ({comissaoPct}%)</th>
+            <th className="py-2 px-2 text-right font-medium">Vendas exames</th>
+            <th className="py-2 px-2 text-right font-medium">Com. exames ({pctVendas.pctExames}%)</th>
+            <th className="py-2 px-2 text-right font-medium">Vendas check-up</th>
+            <th className="py-2 px-2 text-right font-medium">Com. check-up ({pctVendas.pctCheckup}%)</th>
+            <th className="py-2 pl-2 text-right font-medium">Comissão total</th>
           </tr>
         </thead>
         <tbody>
@@ -1118,29 +1151,48 @@ function UserTable({
                 ? "bg-amber-500/10 text-amber-700 dark:text-amber-300"
                 : "bg-destructive/10 text-destructive";
             return (
-            <tr key={r.usuario} className="border-t border-border">
-              <td className="py-2 pr-2 text-foreground">{r.usuario}</td>
-              <td className="py-2 px-2 text-right tabular-nums">{fmtInt(r.qtd)}</td>
-              <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(r.total)}</td>
-              <td className="py-2 px-2 text-right tabular-nums">{fmtInt(r.qtdPago)}</td>
-              <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(r.pago)}</td>
-              <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(r.qtdPago ? r.pago / r.qtdPago : 0)}</td>
-              <td className="py-2 px-2 text-right tabular-nums">
-                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${badgeCls}`}>
-                  {conv.toFixed(1)}%
-                </span>
-              </td>
-              <td className="py-2 pl-2 text-right font-medium tabular-nums text-primary">
-                {fmtBRL(r.pago * (comissaoPct / 100))}
-              </td>
-            </tr>
+              <tr key={r.usuario} className="border-t border-border">
+                <td className="py-2 pr-2 text-foreground">{r.usuario}</td>
+                <td className="py-2 px-2 text-right tabular-nums">{fmtInt(r.qtd)}</td>
+                <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(r.pago)}</td>
+                <td className="py-2 px-2 text-right tabular-nums">
+                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${badgeCls}`}>
+                    {conv.toFixed(1)}%
+                  </span>
+                </td>
+                <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(r.comOrc)}</td>
+                <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(r.exames)}</td>
+                <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(r.comExames)}</td>
+                <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(r.checkup)}</td>
+                <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(r.comCheckup)}</td>
+                <td className="py-2 pl-2 text-right font-semibold tabular-nums text-primary">
+                  {fmtBRL(r.comTotal)}
+                </td>
+              </tr>
             );
           })}
         </tbody>
+        {rows.length > 0 && (
+          <tfoot className="sticky bottom-0 bg-card">
+            <tr className="border-t-2 border-border text-xs font-semibold">
+              <td className="py-2 pr-2 text-foreground">TOTAL</td>
+              <td className="py-2 px-2 text-right tabular-nums">{fmtInt(totals.qtd)}</td>
+              <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(totals.pago)}</td>
+              <td className="py-2 px-2 text-right tabular-nums">—</td>
+              <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(totals.comOrc)}</td>
+              <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(totals.exames)}</td>
+              <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(totals.comExames)}</td>
+              <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(totals.checkup)}</td>
+              <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(totals.comCheckup)}</td>
+              <td className="py-2 pl-2 text-right tabular-nums text-primary">{fmtBRL(totals.comTotal)}</td>
+            </tr>
+          </tfoot>
+        )}
       </table>
     </div>
   );
 }
+
 
 function ConvenioTable({
   rows,
