@@ -868,7 +868,7 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
       </Section>
 
       {/* Convênios + Insights & Alertas */}
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-3">
         <Section
           title="Detalhe por convênio"
           subtitle={`${byConvenio.length} convênios`}
@@ -876,12 +876,9 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
         >
           <ConvenioTable rows={byConvenio} />
         </Section>
-      </div>
+        {(insights.length > 0 || alerts.length > 0) && (
+          <div className="contents">
 
-
-      {/* Insights & Alerts (fim da página) */}
-      {(insights.length > 0 || alerts.length > 0) && (
-        <div className="grid gap-6 lg:grid-cols-2">
           {insights.length > 0 && (
             <section className="rounded-xl border border-border bg-card p-5" style={{ boxShadow: "var(--shadow-card)" }}>
               <header className="mb-3 flex items-center gap-2">
