@@ -71,6 +71,116 @@ export type Database = {
         }
         Relationships: []
       }
+      importacoes: {
+        Row: {
+          arquivo_nome: string | null
+          created_at: string
+          created_by: string
+          id: string
+          linhas_aceitas: number
+          linhas_arquivo: number
+          linhas_rejeitadas: number
+          status: string
+          tipo: string
+        }
+        Insert: {
+          arquivo_nome?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          linhas_aceitas?: number
+          linhas_arquivo?: number
+          linhas_rejeitadas?: number
+          status?: string
+          tipo?: string
+        }
+        Update: {
+          arquivo_nome?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          linhas_aceitas?: number
+          linhas_arquivo?: number
+          linhas_rejeitadas?: number
+          status?: string
+          tipo?: string
+        }
+        Relationships: []
+      }
+      orcamentos: {
+        Row: {
+          convenio1: string | null
+          convenio2: string | null
+          convenio3: string | null
+          created_at: string
+          data_orcamento: string | null
+          data_pagamento: string | null
+          id: string
+          importacao_id: string
+          media_convenio: number
+          numero: string
+          paciente: string | null
+          requisicao: string | null
+          updated_at: string
+          usuario: string
+          valor_pago: number
+          valor_requisicao: number
+          vl_total1: number
+          vl_total2: number
+          vl_total3: number
+        }
+        Insert: {
+          convenio1?: string | null
+          convenio2?: string | null
+          convenio3?: string | null
+          created_at?: string
+          data_orcamento?: string | null
+          data_pagamento?: string | null
+          id?: string
+          importacao_id: string
+          media_convenio?: number
+          numero: string
+          paciente?: string | null
+          requisicao?: string | null
+          updated_at?: string
+          usuario?: string
+          valor_pago?: number
+          valor_requisicao?: number
+          vl_total1?: number
+          vl_total2?: number
+          vl_total3?: number
+        }
+        Update: {
+          convenio1?: string | null
+          convenio2?: string | null
+          convenio3?: string | null
+          created_at?: string
+          data_orcamento?: string | null
+          data_pagamento?: string | null
+          id?: string
+          importacao_id?: string
+          media_convenio?: number
+          numero?: string
+          paciente?: string | null
+          requisicao?: string | null
+          updated_at?: string
+          usuario?: string
+          valor_pago?: number
+          valor_requisicao?: number
+          vl_total1?: number
+          vl_total2?: number
+          vl_total3?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orcamentos_importacao_id_fkey"
+            columns: ["importacao_id"]
+            isOneToOne: false
+            referencedRelation: "importacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           atendente: string | null
@@ -163,6 +273,44 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_assert_caller: { Args: never; Returns: string }
+      admin_create_user: {
+        Args: {
+          p_atendente?: string
+          p_email: string
+          p_full_name: string
+          p_password: string
+          p_role: Database["public"]["Enums"]["app_role"]
+        }
+        Returns: string
+      }
+      admin_delete_user: { Args: { p_user_id: string }; Returns: undefined }
+      admin_list_users: {
+        Args: never
+        Returns: {
+          atendente: string
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          role: string
+        }[]
+      }
+      admin_reset_password: {
+        Args: { p_password: string; p_user_id: string }
+        Returns: undefined
+      }
+      admin_set_atendente: {
+        Args: { p_atendente: string; p_user_id: string }
+        Returns: undefined
+      }
+      admin_set_role: {
+        Args: {
+          p_role: Database["public"]["Enums"]["app_role"]
+          p_user_id: string
+        }
+        Returns: undefined
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

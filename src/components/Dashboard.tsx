@@ -39,9 +39,12 @@ import {
   Trophy,
   Target,
   Percent,
+  FileDown,
 } from "lucide-react";
 import { useGlobalFilters } from "@/lib/globalFilters";
 import { generateExecutiveReport } from "@/lib/executiveReport";
+import { generateCommissionReport } from "@/lib/commissionReport";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const CHART_COLORS = [
@@ -91,6 +94,52 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
   }, [comissaoPct]);
   const [editComissao, setEditComissao] = useState(false);
   const [comissaoInput, setComissaoInput] = useState<string>(String(comissaoPct));
+
+  // Percentuais de comissão de vendas (definidos em Vendas > Relatórios).
+  const [pctVendas, setPctVendas] = useState<{ pctExames: number; pctCheckup: number }>({
+    pctExames: 1.5,
+    pctCheckup: 1.5,
+  });
+  useEffect(() => {
+    const read = () => {
+      try {
+        const raw = window.localStorage.getItem("commissionConfig.v1");
+        if (!raw) return;
+        const p = JSON.parse(raw);
+        setPctVendas({
+          pctExames: Number.isFinite(p?.pctExames) ? Number(p.pctExames) : 1.5,
+          pctCheckup: Number.isFinite(p?.pctCheckup) ? Number(p.pctCheckup) : 1.5,
+        });
+      } catch {
+        /* noop */
+      }
+    };
+    read();
+    window.addEventListener("commission-config-change", read);
+    window.addEventListener("storage", read);
+    return () => {
+      window.removeEventListener("commission-config-change", read);
+      window.removeEventListener("storage", read);
+    };
+  }, []);
+
+  // Vendas (exames / check-up) do período — origem: Registro de Vendas.
+  const [vendas, setVendas] = useState<{ atendente: string; valor: number; tipo: string }[]>([]);
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      let q = supabase.from("vendas").select("atendente,valor,tipo");
+      if (dateFrom) q = q.gte("data_venda", dateFrom);
+      if (dateTo) q = q.lte("data_venda", dateTo);
+      const { data } = await q;
+      if (active) setVendas((data ?? []) as { atendente: string; valor: number; tipo: string }[]);
+    })();
+    return () => {
+      active = false;
+    };
+  }, [dateFrom, dateTo]);
+
+
 
   const conveniosList = useMemo(() => {
     const set = new Set<string>();
@@ -250,6 +299,67 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
     });
     return [...map.values()].sort((a, b) => b.pago - a.pago);
   }, [filteredUniqOrc, pagosFilteredUniq]);
+
+  // Consolidação atendente: orçamentos + vendas (exames/check-up) + comissões.
+  const byUserFull = useMemo(() => {
+    const norm = (s: string) => (s ?? "").toString().trim().toUpperCase().replace(/\s+/g, " ");
+    type Item = {
+      usuario: string;
+      total: number;
+      qtd: number;
+      pago: number;
+      qtdPago: number;
+      exames: number;
+      checkup: number;
+      comOrc: number;
+      comExames: number;
+      comCheckup: number;
+      comTotal: number;
+    };
+    const map = new Map<string, Item>();
+    byUser.forEach((u) => {
+      map.set(norm(u.usuario), {
+        ...u,
+        exames: 0,
+        checkup: 0,
+        comOrc: 0,
+        comExames: 0,
+        comCheckup: 0,
+        comTotal: 0,
+      });
+    });
+    vendas.forEach((v) => {
+      const k = norm(v.atendente);
+      if (!k) return;
+      const e =
+        map.get(k) ??
+        {
+          usuario: v.atendente,
+          total: 0,
+          qtd: 0,
+          pago: 0,
+          qtdPago: 0,
+          exames: 0,
+          checkup: 0,
+          comOrc: 0,
+          comExames: 0,
+          comCheckup: 0,
+          comTotal: 0,
+        };
+      if (v.tipo === "checkup") e.checkup += Number(v.valor) || 0;
+      else e.exames += Number(v.valor) || 0;
+      map.set(k, e);
+    });
+    const list = [...map.values()].map((e) => {
+      const comOrc = e.pago * (comissaoPct / 100);
+      const comExames = e.exames * (pctVendas.pctExames / 100);
+      const comCheckup = e.checkup * (pctVendas.pctCheckup / 100);
+      return { ...e, comOrc, comExames, comCheckup, comTotal: comOrc + comExames + comCheckup };
+    });
+    return list.sort((a, b) => b.comTotal - a.comTotal);
+  }, [byUser, vendas, comissaoPct, pctVendas]);
+
+
 
   // By convenio
   const byConvenio = useMemo(() => {
@@ -658,14 +768,48 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
         </div>
       </Section>
 
-      {/* Tables */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Section
+      {/* Detalhe por atendente — largura total */}
+      <Section
           title="Detalhe por atendente"
-          subtitle={`${byUser.length} pessoas`}
-          info={`Tabela por atendente com quantidade de orçamentos, total orçado, quantidade de pagos, valor pago e comissão calculada em ${comissaoPct}% do valor recebido.`}
+          subtitle={`${byUserFull.length} pessoas · orçamentos, vendas e comissões`}
+          info={`Consolida orçamentos (comissão ${comissaoPct}% sobre o recebido) com as vendas de exames (${pctVendas.pctExames}%) e check-up (${pctVendas.pctCheckup}%) registradas em Registro de Vendas.`}
           headerRight={
-            <div className="relative">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await generateCommissionReport({
+                      rows: byUserFull.map((r) => ({
+                        atendente: r.usuario,
+                        orcPago: r.pago,
+                        comOrc: r.comOrc,
+                        exames: r.exames,
+                        comExames: r.comExames,
+                        checkup: r.checkup,
+                        comCheckup: r.comCheckup,
+                        comTotal: r.comTotal,
+                      })),
+                      pctOrc: comissaoPct,
+                      pctExames: pctVendas.pctExames,
+                      pctCheckup: pctVendas.pctCheckup,
+                      dateFrom,
+                      dateTo,
+                      convenio: convenioFilter,
+                    });
+                    toast.success("Relatório de comissões gerado.");
+                  } catch {
+                    toast.error("Não foi possível gerar o relatório.");
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition hover:bg-accent"
+                title="Gerar relatório de comissões em PDF"
+              >
+                <FileDown className="h-3.5 w-3.5" />
+                Relatório de comissão
+              </button>
+              <div className="relative">
+
               <button
                 type="button"
                 onClick={() => {
@@ -716,11 +860,15 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
                   </div>
                 </div>
               )}
+              </div>
             </div>
           }
         >
-          <UserTable rows={byUser} comissaoPct={comissaoPct} />
-        </Section>
+          <UserTable rows={byUserFull} comissaoPct={comissaoPct} pctVendas={pctVendas} />
+      </Section>
+
+      {/* Convênios + Insights & Alertas */}
+      <div className="grid gap-6 lg:grid-cols-3">
         <Section
           title="Detalhe por convênio"
           subtitle={`${byConvenio.length} convênios`}
@@ -728,11 +876,9 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
         >
           <ConvenioTable rows={byConvenio} />
         </Section>
-      </div>
+        {(insights.length > 0 || alerts.length > 0) && (
+          <div className="contents">
 
-      {/* Insights & Alerts (fim da página) */}
-      {(insights.length > 0 || alerts.length > 0) && (
-        <div className="grid gap-6 lg:grid-cols-2">
           {insights.length > 0 && (
             <section className="rounded-xl border border-border bg-card p-5" style={{ boxShadow: "var(--shadow-card)" }}>
               <header className="mb-3 flex items-center gap-2">
@@ -788,8 +934,10 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
               </ul>
             </section>
           )}
-        </div>
-      )}
+          </div>
+        )}
+      </div>
+
     </div>
   );
 }
@@ -937,26 +1085,59 @@ function RankTable({
   );
 }
 
+type UserFullRow = {
+  usuario: string;
+  total: number;
+  qtd: number;
+  pago: number;
+  qtdPago: number;
+  exames: number;
+  checkup: number;
+  comOrc: number;
+  comExames: number;
+  comCheckup: number;
+  comTotal: number;
+};
+
 function UserTable({
   rows,
   comissaoPct,
+  pctVendas,
 }: {
-  rows: { usuario: string; total: number; qtd: number; pago: number; qtdPago: number }[];
+  rows: UserFullRow[];
   comissaoPct: number;
+  pctVendas: { pctExames: number; pctCheckup: number };
 }) {
+  const totals = rows.reduce(
+    (a, r) => ({
+      qtd: a.qtd + r.qtd,
+      total: a.total + r.total,
+      qtdPago: a.qtdPago + r.qtdPago,
+      pago: a.pago + r.pago,
+      comOrc: a.comOrc + r.comOrc,
+      exames: a.exames + r.exames,
+      comExames: a.comExames + r.comExames,
+      checkup: a.checkup + r.checkup,
+      comCheckup: a.comCheckup + r.comCheckup,
+      comTotal: a.comTotal + r.comTotal,
+    }),
+    { qtd: 0, total: 0, qtdPago: 0, pago: 0, comOrc: 0, exames: 0, comExames: 0, checkup: 0, comCheckup: 0, comTotal: 0 },
+  );
   return (
-    <div className="max-h-80 overflow-auto">
-      <table className="w-full text-sm">
-        <thead className="sticky top-0 bg-card text-xs uppercase tracking-wider text-muted-foreground">
+    <div className="max-h-[28rem] overflow-auto">
+      <table className="w-full min-w-[1000px] text-sm">
+        <thead className="sticky top-0 z-10 bg-card text-xs uppercase tracking-wider text-muted-foreground">
           <tr>
             <th className="py-2 pr-2 text-left font-medium">Atendente</th>
             <th className="py-2 px-2 text-right font-medium">Orç.</th>
-            <th className="py-2 px-2 text-right font-medium">Total</th>
-            <th className="py-2 px-2 text-right font-medium">Pagos</th>
             <th className="py-2 px-2 text-right font-medium">Recebido</th>
-            <th className="py-2 px-2 text-right font-medium">Ticket médio</th>
             <th className="py-2 px-2 text-right font-medium">Conv. %</th>
-            <th className="py-2 pl-2 text-right font-medium">Comissão ({comissaoPct}%)</th>
+            <th className="py-2 px-2 text-right font-medium">Com. Orç. ({comissaoPct}%)</th>
+            <th className="py-2 px-2 text-right font-medium">Vendas exames</th>
+            <th className="py-2 px-2 text-right font-medium">Com. exames ({pctVendas.pctExames}%)</th>
+            <th className="py-2 px-2 text-right font-medium">Vendas check-up</th>
+            <th className="py-2 px-2 text-right font-medium">Com. check-up ({pctVendas.pctCheckup}%)</th>
+            <th className="py-2 pl-2 text-right font-medium">Comissão total</th>
           </tr>
         </thead>
         <tbody>
@@ -969,29 +1150,48 @@ function UserTable({
                 ? "bg-amber-500/10 text-amber-700 dark:text-amber-300"
                 : "bg-destructive/10 text-destructive";
             return (
-            <tr key={r.usuario} className="border-t border-border">
-              <td className="py-2 pr-2 text-foreground">{r.usuario}</td>
-              <td className="py-2 px-2 text-right tabular-nums">{fmtInt(r.qtd)}</td>
-              <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(r.total)}</td>
-              <td className="py-2 px-2 text-right tabular-nums">{fmtInt(r.qtdPago)}</td>
-              <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(r.pago)}</td>
-              <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(r.qtdPago ? r.pago / r.qtdPago : 0)}</td>
-              <td className="py-2 px-2 text-right tabular-nums">
-                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${badgeCls}`}>
-                  {conv.toFixed(1)}%
-                </span>
-              </td>
-              <td className="py-2 pl-2 text-right font-medium tabular-nums text-primary">
-                {fmtBRL(r.pago * (comissaoPct / 100))}
-              </td>
-            </tr>
+              <tr key={r.usuario} className="border-t border-border">
+                <td className="py-2 pr-2 text-foreground">{r.usuario}</td>
+                <td className="py-2 px-2 text-right tabular-nums">{fmtInt(r.qtd)}</td>
+                <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(r.pago)}</td>
+                <td className="py-2 px-2 text-right tabular-nums">
+                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${badgeCls}`}>
+                    {conv.toFixed(1)}%
+                  </span>
+                </td>
+                <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(r.comOrc)}</td>
+                <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(r.exames)}</td>
+                <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(r.comExames)}</td>
+                <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(r.checkup)}</td>
+                <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(r.comCheckup)}</td>
+                <td className="py-2 pl-2 text-right font-semibold tabular-nums text-primary">
+                  {fmtBRL(r.comTotal)}
+                </td>
+              </tr>
             );
           })}
         </tbody>
+        {rows.length > 0 && (
+          <tfoot className="sticky bottom-0 bg-card">
+            <tr className="border-t-2 border-border text-xs font-semibold">
+              <td className="py-2 pr-2 text-foreground">TOTAL</td>
+              <td className="py-2 px-2 text-right tabular-nums">{fmtInt(totals.qtd)}</td>
+              <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(totals.pago)}</td>
+              <td className="py-2 px-2 text-right tabular-nums">—</td>
+              <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(totals.comOrc)}</td>
+              <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(totals.exames)}</td>
+              <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(totals.comExames)}</td>
+              <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(totals.checkup)}</td>
+              <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(totals.comCheckup)}</td>
+              <td className="py-2 pl-2 text-right tabular-nums text-primary">{fmtBRL(totals.comTotal)}</td>
+            </tr>
+          </tfoot>
+        )}
       </table>
     </div>
   );
 }
+
 
 function ConvenioTable({
   rows,
