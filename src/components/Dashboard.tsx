@@ -43,7 +43,13 @@ import {
 } from "lucide-react";
 import { useGlobalFilters } from "@/lib/globalFilters";
 import { generateExecutiveReport } from "@/lib/executiveReport";
-import { generateCommissionReport } from "@/lib/commissionReport";
+import { generateCommissionReport, generateCommissionExcel } from "@/lib/commissionReport";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
