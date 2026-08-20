@@ -300,6 +300,67 @@ export function Dashboard({ rows, fileName, importedAt }: Props) {
     return [...map.values()].sort((a, b) => b.pago - a.pago);
   }, [filteredUniqOrc, pagosFilteredUniq]);
 
+  // Consolidação atendente: orçamentos + vendas (exames/check-up) + comissões.
+  const byUserFull = useMemo(() => {
+    const norm = (s: string) => (s ?? "").toString().trim().toUpperCase().replace(/\s+/g, " ");
+    type Item = {
+      usuario: string;
+      total: number;
+      qtd: number;
+      pago: number;
+      qtdPago: number;
+      exames: number;
+      checkup: number;
+      comOrc: number;
+      comExames: number;
+      comCheckup: number;
+      comTotal: number;
+    };
+    const map = new Map<string, Item>();
+    byUser.forEach((u) => {
+      map.set(norm(u.usuario), {
+        ...u,
+        exames: 0,
+        checkup: 0,
+        comOrc: 0,
+        comExames: 0,
+        comCheckup: 0,
+        comTotal: 0,
+      });
+    });
+    vendas.forEach((v) => {
+      const k = norm(v.atendente);
+      if (!k) return;
+      const e =
+        map.get(k) ??
+        {
+          usuario: v.atendente,
+          total: 0,
+          qtd: 0,
+          pago: 0,
+          qtdPago: 0,
+          exames: 0,
+          checkup: 0,
+          comOrc: 0,
+          comExames: 0,
+          comCheckup: 0,
+          comTotal: 0,
+        };
+      if (v.tipo === "checkup") e.checkup += Number(v.valor) || 0;
+      else e.exames += Number(v.valor) || 0;
+      map.set(k, e);
+    });
+    const list = [...map.values()].map((e) => {
+      const comOrc = e.pago * (comissaoPct / 100);
+      const comExames = e.exames * (pctVendas.pctExames / 100);
+      const comCheckup = e.checkup * (pctVendas.pctCheckup / 100);
+      return { ...e, comOrc, comExames, comCheckup, comTotal: comOrc + comExames + comCheckup };
+    });
+    return list.sort((a, b) => b.comTotal - a.comTotal);
+  }, [byUser, vendas, comissaoPct, pctVendas]);
+
+
+
   // By convenio
   const byConvenio = useMemo(() => {
     const map = new Map<string, { convenio: string; total: number; pago: number; qtd: number; qtdPago: number }>();
