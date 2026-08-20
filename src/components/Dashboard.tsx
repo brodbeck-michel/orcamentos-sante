@@ -1159,13 +1159,13 @@ function UserTable({
                     {conv.toFixed(1)}%
                   </span>
                 </td>
-                <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(r.comOrc)}</td>
-                <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(r.exames)}</td>
-                <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(r.comExames)}</td>
-                <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(r.checkup)}</td>
-                <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(r.comCheckup)}</td>
+                <td className="py-2 px-2 text-right tabular-nums">{fmtBRLFull(r.comOrc)}</td>
+                <td className="py-2 px-2 text-right tabular-nums">{fmtBRLFull(r.exames)}</td>
+                <td className="py-2 px-2 text-right tabular-nums">{fmtBRLFull(r.comExames)}</td>
+                <td className="py-2 px-2 text-right tabular-nums">{fmtBRLFull(r.checkup)}</td>
+                <td className="py-2 px-2 text-right tabular-nums">{fmtBRLFull(r.comCheckup)}</td>
                 <td className="py-2 pl-2 text-right font-semibold tabular-nums text-primary">
-                  {fmtBRL(r.comTotal)}
+                  {fmtBRLFull(r.comTotal)}
                 </td>
               </tr>
             );
@@ -1176,14 +1176,14 @@ function UserTable({
             <tr className="border-t-2 border-border text-xs font-semibold">
               <td className="py-2 pr-2 text-foreground">TOTAL</td>
               <td className="py-2 px-2 text-right tabular-nums">{fmtInt(totals.qtd)}</td>
-              <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(totals.pago)}</td>
+              <td className="py-2 px-2 text-right tabular-nums">{fmtBRLFull(totals.pago)}</td>
               <td className="py-2 px-2 text-right tabular-nums">—</td>
-              <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(totals.comOrc)}</td>
-              <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(totals.exames)}</td>
-              <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(totals.comExames)}</td>
-              <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(totals.checkup)}</td>
-              <td className="py-2 px-2 text-right tabular-nums">{fmtBRL(totals.comCheckup)}</td>
-              <td className="py-2 pl-2 text-right tabular-nums text-primary">{fmtBRL(totals.comTotal)}</td>
+              <td className="py-2 px-2 text-right tabular-nums">{fmtBRLFull(totals.comOrc)}</td>
+              <td className="py-2 px-2 text-right tabular-nums">{fmtBRLFull(totals.exames)}</td>
+              <td className="py-2 px-2 text-right tabular-nums">{fmtBRLFull(totals.comExames)}</td>
+              <td className="py-2 px-2 text-right tabular-nums">{fmtBRLFull(totals.checkup)}</td>
+              <td className="py-2 px-2 text-right tabular-nums">{fmtBRLFull(totals.comCheckup)}</td>
+              <td className="py-2 pl-2 text-right tabular-nums text-primary">{fmtBRLFull(totals.comTotal)}</td>
             </tr>
           </tfoot>
         )}
